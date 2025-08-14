@@ -1,30 +1,25 @@
 {
-  "name": "http-backend",
+  "name": "wsbackend",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "build":"tsc -b   ",
     "start":"node ./dist/index.js",
     "dev":"tsc -b && node ./dist/index.js"
   },
   "devDependencies": {
-    "@repo/common": "workspace:*",
-    "@repo/db": "workspace:*",
     "@repo/typescript-config": "workspace:*",
-    "@repo/zod": "workspace:*",
-    "@types/bcrypt": "^6.0.0"
+    "@repo/common": "workspace:*"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
    
   "dependencies": {
-    "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.10",
-    "bcrypt": "^6.0.0",
-    "express": "^5.1.0",
-    "jsonwebtoken": "^9.0.2"
+    "@types/ws": "^8.18.1",
+    "jsonwebtoken": "^9.0.2",
+    "ws": "^8.18.3"
   }
 }

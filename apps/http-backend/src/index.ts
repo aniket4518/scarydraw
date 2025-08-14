@@ -1,22 +1,116 @@
 import express from 'express'
+import {prismaclient} from "@repo/db/client"
+import { middleware } from './middleware'
+import { UserSchema ,singninSchema,RoomName} from "@repo/zod/userschema"
+import  jwt from 'jsonwebtoken'
+import bcrypt from 'bcrypt'
+import { JWT_SCERET } from '@repo/common/environment'
+ 
  const app =express()
  app.use(express.json())
 
 const port = process.env.port || 3000
 
 app.get ("/",(req,res)=>{
+
     res.json({message:"the server is working"})
 })
 
-app.post ("/signup",(req,res)=>{
+ app.post("/singup",async(req,res)=>{
+  try{
+    const parsedData =  UserSchema.safeParse(req.body)
+    if(!parsedData.success){
+      res.json("incorrect data format")
+      return
+    }
+    const userexit = await prismaclient.user.findFirst({
+      where: {
+        email: parsedData.data.email
+      }
+    })
+    if(userexit){
+        res.json("user already exist")
+    }
+    const hashedpassword = await bcrypt.hash(parsedData.data.password,12)  
+    await prismaclient.user.create({
+      data:{
+        
+        password:hashedpassword,
+        name: parsedData.data.name,
+        email: parsedData.data.email,
+      }
+    })
+    res.json("user created successfully")
+  }
+  catch(error){
+  res.status(400).json(
+    "something went wrong"
+  )
+ }
 
 })
-app.post("/signin",(req,res)=>{
+app.post("/signin", async(req,res)=>{
+    const parsedData= singninSchema.safeParse(req.body)
+    if (!parsedData.success){
+        res.json("incorrect input")
+        //if i didn't return here there might be null it means it exucte it even the data is not filleed
+        return
+    }
+try {
+     //password ko find kar ke compare 
+    const  user =await prismaclient.user.findFirst({
+      where :{
+      email:parsedData.data.email
+      }
+     })
+     if (!user){
+      res.json("user not found")
+      return
+     }
+     const passwordmatch = await bcrypt.compare(user.password,parsedData.data.password)
+     if (!passwordmatch){
+        res.json({ success: false, msg: "Incorrect Password"});
+          return;
+        }
+       const token =  jwt.sign({
+          userId: user.id
+        }, JWT_SCERET);
 
+        res.json({ success: true, msg: "Logged in", token});
+
+    
+
+}
+catch(error){
+   res.json( {  msg: "user unauthorized"})
+}
 })
-app.post ("/room",(req,res)=>{
-    const roomid =123
-    res.json(`created room with roomid ${roomid}`)
+app.post ("/room",middleware,async(req,res)=>{
+     try{
+         const parssedData = RoomName.safeParse(req.body)
+         
+         if(!parssedData.success){
+          res.json ("invalid input")
+          return
+         }
+         const userId =req.userId  
+        const room= await prismaclient.room.create({
+          data:{
+             name :parssedData.data.roomname,
+             adminId: userId
+ }
+         })
+         if(!room ){
+          res.json ("room not created")
+          return
+         }
+         res.json(room.id)
+
+     }
+     catch(error){
+       res.status(403).json({msg:" room id is already there"})
+     }
+    
 })
 
 app.listen(port , ()=>{

@@ -7,7 +7,8 @@ export const UserSchema = z.object({
 })
 export const singninSchema =z.object({
     username: z.string().min(3).max(20),
-    password:z.string()
+    password:z.string(),
+    email: z.email(),
 })
 export const RoomName =z.object({
     roomname:z.string()
