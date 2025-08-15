@@ -23,7 +23,7 @@ model User {
   photo           String?     
   chats           Chat[] 
   rooms           Room[] 
-  message         Message[]    
+     
 
 }
 model Room {
@@ -32,23 +32,15 @@ model Room {
   chats             Chat[]
   adminId          String 
   admin            User      @relation(fields:[adminId] ,references:[id])
-  messages         Message[]
+   
 }
 model Chat {
   id              Int       @id @default(autoincrement())
-  message        Message[]     
-  roomId         Int 
-  room           Room                @relation(fields:[roomId] ,references:[id])
-  userId         String 
-  user          User                 @relation(fields:[userId], references:[id])
+  message         String    
+  roomId          Int 
+  room            Room                @relation(fields:[roomId] ,references:[id])
+  userId          String 
+  user           User                 @relation(fields:[userId], references:[id])
 
 }
-model Message  {
-id                     Int        @id @default(autoincrement())
-chatId                Int
-roomId                Int
-userId               String
-user                 User                @relation(fields:[userId], references:[id])
-room                 Room                 @relation(fields:[roomId] ,references:[id])
-chat                  Chat                 @relation(fields:[chatId], references:[id])
-}
+ 
