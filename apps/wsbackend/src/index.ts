@@ -10,6 +10,7 @@ interface User {
     rooms:string [],
     ws :WebSocket
 }
+ 
 const users :User[]=[]
 function connection (token:string): string | null{
     try {
@@ -43,6 +44,7 @@ wss.on('connection', (ws, request) => {
   const token = queryParams.get('token') || "";
   console.log("token",token)
   const userid=  connection (token)
+  console.log("userid",userid)
    if (!userid){
     ws.close() 
     return null
@@ -52,39 +54,45 @@ wss.on('connection', (ws, request) => {
     rooms:[],
      ws  
    })
+   console.log("users", users)
    ws.on ('message', async function message(data){
     //send the parssed data or user given data to the server on the basis of types
-    const newdata = JSON.stringify(data)
-    const parssedData = JSON.parse(newdata)
-    if (parssedData.type==="join_room"){
-        const user = users.find(u => u.ws === ws)
-        if(user){
-            user.rooms.push(parssedData.roomId)
-        }
+
+    const parssedData =  JSON.parse(data as unknown as string);
+    if (!parssedData) return;
+    if (parssedData.type === "join_room") {
+        const user = users.find(x => x.ws === ws)
+
+        user?.rooms.push(parssedData.roomId)
+        console.log("user", user?.rooms, user)
     }
-     if (parssedData.type==="leave"){
+    console.log("parssedData", parssedData)
+
+    if (parssedData.type === "leave") {
         const user = users.find(u => u.ws === ws)
-        if(!user){
-          return 
+        if (!user) {
+            return
         }
       user.rooms =  user?.rooms.filter(u=>u !== parssedData.roomId)
     }
     if(parssedData.type==="chat"){
-      const roomId =parssedData.roomId
-      const message = parssedData.message
-       await  prismaclient.chat.create({
-        data:{
-          userId:userid,
-          roomId,
-          message
-        }
-      })
-        users.forEach(user => {
+     const roomId   = parssedData.roomId   ;
+       const message   = parssedData.message  ;
+
+       await prismaclient.chat.create({
+         data: {
+           roomId ,
+           userId: userid,
+           message
+         }
+        })
+      users.forEach(user => {
       if (user.rooms.includes(roomId)) {
         user.ws.send(JSON.stringify({
            type: "chat",
-            roomId,
-             message }))
+              roomId,
+              message 
+            }))
       }
     })
     }
