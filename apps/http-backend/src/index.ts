@@ -92,6 +92,7 @@ catch(error){
    res.json( {  msg: "user unauthorized"})
 }
 })
+// room creation
 app.post ("/room",middleware,async(req,res)=>{
      try{
          const parssedData = RoomName.safeParse(req.body)
@@ -122,6 +123,44 @@ app.post ("/room",middleware,async(req,res)=>{
        res.status(403).json({msg:" room id is already there"})
      }
     
+})
+app.get("/room/:name",async(req,res) =>{
+  const name = req.params.name;
+  if (!name) {
+    res.json("something wrong happened")
+    return
+  }
+  const room = await prismaclient.room.findFirst({
+    where: {
+      name :name
+    }
+  })
+  
+  console.log ("the room  with the name ",room)
+  if(!room){
+    res.status(404).json({msg:"room not found"})
+    return
+  }
+  res.json(room.id)
+})
+//getting chats of that room from db
+app.get("/chats/:roomid", async (req, res) => {
+const roomid = Number(req.params.roomid);
+if(typeof roomid !== 'number' ){
+  res.status(400).json({msg:"invalid room id"})
+  return
+}
+const chats = await prismaclient.chat.findMany({
+  where:{
+    roomId: roomid
+  },
+  orderBy :{
+    id:"asc"
+  },
+  take : 100
+})
+res.json(chats);
+
 })
 
 app.listen(port , ()=>{
