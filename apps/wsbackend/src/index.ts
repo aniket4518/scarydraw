@@ -20,9 +20,7 @@ function connection (token:string): string | null{
        
       return null;
     }
-    
-    console.log('New client connected with userId:', decoded.userId);
-
+     
     // You can return a string here if needed, for now returning userId as string
     return decoded.userId as string;
     
@@ -42,9 +40,9 @@ wss.on('connection', (ws, request) => {
   
   const queryParams = new URLSearchParams(url.split('?')[1] || '');
   const token = queryParams.get('token') || "";
-  console.log("token",token)
+  
   const userid=  connection (token)
-  console.log("userid",userid)
+   
    if (!userid){
     ws.close() 
     return null
@@ -54,7 +52,7 @@ wss.on('connection', (ws, request) => {
     rooms:[],
      ws  
    })
-   console.log("users", users)
+    
    ws.on ('message', async function message(data){
     //send the parssed data or user given data to the server on the basis of types
 
@@ -64,9 +62,9 @@ wss.on('connection', (ws, request) => {
         const user = users.find(x => x.ws === ws)
 
         user?.rooms.push(parssedData.roomId)
-        console.log("user", user?.rooms, user)
+        
     }
-    console.log("parssedData", parssedData)
+    
 
     if (parssedData.type === "leave") {
         const user = users.find(u => u.ws === ws)

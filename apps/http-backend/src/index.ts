@@ -5,10 +5,11 @@ import { UserSchema ,singninSchema,RoomName} from "@repo/zod/userschema"
 import  jwt from 'jsonwebtoken'
 import bcrypt from 'bcrypt'
 import { JWT_SCERET} from '@repo/common/environment'
+import cors from 'cors'
  
  const app =express()
  app.use(express.json())
-
+app.use(cors())
 const port =  process.env.PORT || 3001
 
 app.get ("/",(req,res)=>{
