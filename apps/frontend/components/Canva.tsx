@@ -15,7 +15,7 @@ export default function  Canva ({
         if (canvasRef.current) {
          drawPage( canvasRef as React.RefObject<HTMLCanvasElement>,roomId, socket  );
         }
-      }, []);
+      }, [canvasRef]);
     
   
   return (

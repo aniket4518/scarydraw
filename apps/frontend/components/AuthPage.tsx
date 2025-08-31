@@ -1,8 +1,16 @@
 "use client"
 
 import signin from "@/app/signin/page"
+import { signIn, getSession } from "next-auth/react";
 
 export function Authpage ({isSignin}:{isSignin:boolean}){
+   const handleGoogleSignIn = async () => {
+        try {
+            await signIn("google", { callbackUrl: "/room" });
+        } catch (error) {
+            console.error("Google sign in failed", error);
+        }
+    };
     return(
         <div className="w-screen h-screen flex items-center justify-center absolute inset-0 bg-gradient-to-br from-orange-50 to-red-50 ">
           <div className="max-w-sm bg-white rounded-lg shadow-lg p-6 shadow-sm shadow-red-500/25 ">  
@@ -25,6 +33,9 @@ export function Authpage ({isSignin}:{isSignin:boolean}){
          </div>
            <button className="group bg-gradient-to-r from-red-600 to-orange-600 text-white m-4 px-6 py-4 rounded-lg text-lg    font-semibold hover:shadow-2xl hover:shadow-red-500/25 transition-all duration-300 hover:scale-90 flex items-center space-x-2 h-10">
               <span>{isSignin ? "signin" : "signup"}</span>
+              </button>
+           <button onClick={handleGoogleSignIn} className="group bg-gradient-to-r from-red-600 to-orange-600 text-white m-4 px-6 py-4 rounded-lg text-lg    font-semibold hover:shadow-2xl hover:shadow-red-500/25 transition-all duration-300 hover:scale-90 flex items-center space-x-2 h-10">
+              <span> signin with google</span>
               </button>
           </div>     
         </div>

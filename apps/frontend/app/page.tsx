@@ -48,9 +48,16 @@ function App() {
           </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-6">
-             <Link href="/signin">
+             <Link href="/room">
             <button className="group bg-gradient-to-r from-red-600 to-orange-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:shadow-2xl hover:shadow-red-500/25 transition-all duration-300 hover:scale-105 flex items-center space-x-2">
-              <span>signin</span>
+              <span>Create Room</span>
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </button>
+            </Link>
+
+             <Link href="/signin">
+            <button className="group bg-gradient-to-r from-purple-600 to-red-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:shadow-2xl hover:shadow-purple-500/25 transition-all duration-300 hover:scale-105 flex items-center space-x-2">
+              <span>Sign In</span>
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
             </Link>
@@ -58,7 +65,7 @@ function App() {
             <Link href='/signup'>
             <button className="group flex items-center space-x-2 px-8 py-4 rounded-lg border border-gray-300 hover:border-red-500 bg-white hover:bg-red-50 transition-all duration-300">
               <Play className="w-5 h-5 text-red-600" />
-              <span className="text-gray-700">signup</span>
+              <span className="text-gray-700">Sign Up</span>
             </button>
             </Link>
           </div>
@@ -195,10 +202,12 @@ function App() {
           </div>
           
           <div className="text-center mt-12">
+            <Link href="/room">
             <button className="group bg-gradient-to-r from-red-600 to-orange-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:shadow-2xl hover:shadow-red-500/25 transition-all duration-300 hover:scale-105 flex items-center space-x-2 mx-auto">
               <span>Start Your Nightmare</span>
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
+            </Link>
           </div>
         </div>
       </section>
