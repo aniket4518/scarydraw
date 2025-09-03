@@ -4,12 +4,14 @@ import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Http_Backend } from '../../config';
+import Allrooms from '../../components/Allrooms';
 export default function CreateRoomPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [roomName, setRoomName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
 
   if (status === 'loading') {
     return (
@@ -62,13 +64,28 @@ export default function CreateRoomPage() {
       }
 
       console.log('Room created successfully with ID:', result.id);
-      router.push(`/canvas/${result.id}`);
+      
+      // Show success message briefly before redirecting
+      setError(''); // Clear any previous errors
+      setSuccess(true);
+      
+      
+
+
+      
+      // Small delay to show success state, then redirect
+      setTimeout(() => {
+        router.push(`/canvas/${result.id}`);
+      }, 500);
       
     } catch (error) {
       console.error('Error creating room:', error);
       setError('Failed to create room. Please try again.');
     } finally {
-      setLoading(false);
+      // Don't set loading to false if we're redirecting
+      if (!success) {
+        setLoading(false);
+      }
     }
   };
 
@@ -83,6 +100,12 @@ export default function CreateRoomPage() {
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
             {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg">
+            Room created successfully! Redirecting to canvas...
           </div>
         )}
 
@@ -105,10 +128,10 @@ export default function CreateRoomPage() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || success}
             className="w-full bg-gradient-to-r from-red-600 to-orange-600 text-white py-3 px-4 rounded-lg font-semibold hover:shadow-lg hover:shadow-red-500/25 transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
-            {loading ? 'Creating...' : 'Create Room'}
+            {success ? 'Redirecting...' : loading ? 'Creating...' : 'Create Room'}
           </button>
         </form>
 
@@ -121,6 +144,10 @@ export default function CreateRoomPage() {
           </a>
         </div>
       </div>
+       
+      <Allrooms/>
+    
     </div>
+
   );
 }

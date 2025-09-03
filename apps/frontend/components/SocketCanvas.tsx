@@ -2,24 +2,27 @@
 import { useEffect, useState } from "react";
 import Canva from "./Canva";
 import { ws_backend } from "@/config";
+import { getCsrfToken } from "next-auth/react";
 
-export default function SocketCanvas({roomId}:{
-    roomId :number
-}){
+export default async function SocketCanvas({ roomId }: { roomId: number }) {
     //ws connection 
-    const [socket,setsocket]=useState <WebSocket | null>(null)
-    console.log(roomId)
+   const session = await ();
+  const token =  
+    const [socket, setSocket] = useState<WebSocket | null>(null)
+    console.log("from socket canvas", roomId)
     useEffect(()=>{
-     const ws = new WebSocket(`${ws_backend}?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI4NWFmYzhkMi1lNzdiLTRhNjktODQ3Mi0xNjRjNzdjZGE4YzIiLCJpYXQiOjE3NTYyMTk3MTh9.e4STVWuRZMvJvxAFBmEv2Lhf1fqBODz8GaI3XeQzY4Y`)
-        ws.onopen=() =>{
-            setsocket(ws)
+     const ws = new WebSocket(`${ws_backend}`)
+        ws.onopen = () => {
+            setSocket(ws)
             ws.send(JSON.stringify({
                 type:"join_room",
                 roomId
-            }
-            ))
+            }))
         }
-    },[])
+        return () => {
+            ws.close()
+        }
+    },[roomId])
  if (!socket){
     return (
         <div> 
@@ -28,9 +31,12 @@ export default function SocketCanvas({roomId}:{
     );
 }
 
+ 
+
+ 
 return (
     <>
-        <Canva roomId={roomId} socket={socket} />
+        <Canva roomId={roomId} />
     </>
 );
 

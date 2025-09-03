@@ -9,6 +9,7 @@
           };
           context?: any;  
          userId:string;
+         email:string;
         }
       }
     }

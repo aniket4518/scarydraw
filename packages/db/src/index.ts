@@ -1,3 +1,3 @@
      import { PrismaClient } from '@prisma/client'
 
-     export const prismaclient = new PrismaClient()
+     export const prismaclient = new  PrismaClient()

@@ -110,7 +110,7 @@ app.post ("/room",NextAuthmiddleware,async(req,res)=>{
           return
          }
          
-         const userEmail = req.userId // This is the email from JWT  
+         const userEmail = req.email
          console.log("User email from JWT:", userEmail);
          
          if(!userEmail){
@@ -119,7 +119,7 @@ app.post ("/room",NextAuthmiddleware,async(req,res)=>{
           return
          }
 
-         // Find the actual user by email to get their ID
+          
          const user = await prismaclient.user.findFirst({
            where: {
              email: userEmail
@@ -133,12 +133,11 @@ app.post ("/room",NextAuthmiddleware,async(req,res)=>{
          }
 
          console.log("Found user:", user.id, user.email);
-
-         // Create room with actual user ID
+ 
          const room = await prismaclient.room.create({
            data:{
              name: parssedData.data.roomname,
-             adminId: user.id // Use the actual user ID, not email
+             adminId: user.id  
            }
          })
          
@@ -159,43 +158,53 @@ app.post ("/room",NextAuthmiddleware,async(req,res)=>{
      }
     
 })
-// app.get("/room/:name",async(req,res) =>{
-//   const name = req.params.name;
-//   if (!name) {
-//     res.json("something wrong happened")
-//     return
-//   }
-//   const room = await prismaclient.room.findFirst({
-//     where: {
-//       name :name
-//     }
-//   })
-  
-//   console.log ("the room  with the name ",room)
-//   if(!room){
-//     res.status(404).json({msg:"room not found"})
-//     return
-//   }
-//   res.json(room.id)
-// })
-//getting chats of that room from db
-app.get("/chats/:roomid",NextAuthmiddleware, async (req, res) => {
-const roomid = Number(req.params.roomid);
-if(typeof roomid !== 'number' ){
-  res.status(400).json({msg:"invalid room id"})
-  return
-}
-const chats = await prismaclient.chat.findMany({
-  where:{
-    roomId: roomid
-  },
-  orderBy :{
-    id:"asc"
-  },
-  take : 100
-})
-res.json(chats);
+ 
+ // get all the rooms of user 
+ app.get("/rooms", NextAuthmiddleware, async (req , res)=>{
+       const userid = req.userId
+       console.log("Getting rooms for user:", userid);
+       
+       if (!userid) {
+         res.status(400).json({ msg: "invalid user id" })
+         return
+       }
 
+       try {
+         const rooms = await prismaclient.room.findMany({
+           where:{
+             adminId: userid
+           }
+         })
+         console.log("Found rooms:", rooms);
+         res.json(rooms)
+       } catch (error) {
+         console.error("Error fetching rooms:", error)
+         res.status(500).json({ msg: "Error fetching rooms" })
+       }
+ })
+
+//getting chats of that room from db
+app.get("/chats/:roomid",  async (req, res) => {
+  const roomid = Number(req.params.roomid);
+  if(typeof roomid !== 'number' ){
+    res.status(400).json({msg:"invalid room id"})
+    return
+  }
+  
+  const chats = await prismaclient.chat.findMany({
+    where:{
+      roomId: roomid
+    },
+    orderBy :{
+      id:"asc"
+    },
+    take : 100
+  })
+  res.json(chats);
+})
+
+app.listen(port , ()=>{
+    console.log (`server is running on port ${port}`)
 })
 
 app.listen(port , ()=>{

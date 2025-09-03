@@ -1,5 +1,5 @@
 import { NextFunction,Request,Response } from 'express';
-import Jwt, { JwtPayload } from  "jsonwebtoken";
+import Jwt, { decode, JwtPayload } from  "jsonwebtoken";
 import {JWT_SCERET} from "@repo/common/environment"
  
 
@@ -48,6 +48,7 @@ import {JWT_SCERET} from "@repo/common/environment"
       
       if (decoded && typeof decoded === 'object' && 'userId' in decoded && typeof decoded.userId === 'string') {
         req.userId = decoded.userId;
+         req.email=decoded.email
         console.log("User authenticated with userId:", req.userId);
         next()
       } else {

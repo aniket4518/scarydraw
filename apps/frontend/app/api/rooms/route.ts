@@ -19,9 +19,9 @@ const authOptions = {
   },
 };
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    console.log('=== Room Creation API Called ===');
+    console.log('=== Rooms API Called ===');
     
     // Get the session to check if user is authenticated
     const session = await getServerSession(authOptions);
@@ -40,18 +40,6 @@ export async function POST(request: NextRequest) {
     const userId = (session.user as any).id;
     console.log('User ID from session:', userId);
 
-    // Get the request body
-    const body = await request.json();
-    const { roomname } = body;
-    console.log('Request body:', body);
-
-    if (!roomname) {
-      return NextResponse.json(
-        { error: 'Room name is required' },
-        { status: 400 }
-      );
-    }
-
     // Create JWT token for backend authentication using NEXTAUTH_SECRET
     const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET;
     if (!NEXTAUTH_SECRET) {
@@ -62,7 +50,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-     
     const tokenPayload = {
       userId: userId,  // Use the real database user ID
       email: session.user.email,
@@ -70,63 +57,50 @@ export async function POST(request: NextRequest) {
     };
 
     const token = jwt.sign(tokenPayload, NEXTAUTH_SECRET);
-    console.log('Generated JWT token payload:', tokenPayload);
-    console.log('JWT token created successfully');
+    console.log('Generated JWT token for rooms request');
 
     // Send request to backend
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
-    console.log('Sending request to backend:', `${backendUrl}/room`);
-    console.log('Request payload:', { roomname });
+    console.log('Sending request to backend:', `${backendUrl}/rooms`);
     
-    const response = await fetch(`${backendUrl}/room`, {
-      method: 'POST',
+    const response = await fetch(`${backendUrl}/rooms`, {
+      method: 'GET',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': token, // Send JWT token in Authorization header
       },
-      body: JSON.stringify({
-        roomname: roomname,
-      }),
     });
 
     console.log('Backend response status:', response.status);
-    const responseText = await response.text();
-    console.log('Backend response text:', responseText);
-
+    console.log(response)
+    
     if (!response.ok) {
-      console.error('Backend request failed:', response.status, responseText);
+      console.error('Backend request failed:', response.status);
       return NextResponse.json(
         { 
           error: 'Backend request failed',
-          details: responseText,
           status: response.status
         },
         { status: response.status }
       );
     }
-    
 
+    const responseText = await response.text();
+    console.log('Backend response text:', responseText);
 
-    // Parse the response (should be room ID)
-    let roomId;
+    // Parse the response (should be rooms array)
+    let rooms;
     try {
-      roomId = JSON.parse(responseText);
+      rooms = JSON.parse(responseText);
     } catch {
-      roomId = responseText; // In case it's just a string/number
+      rooms = []; // Return empty array if parsing fails
     }
 
-    console.log('Room created successfully with ID:', roomId);
-    
-
-    return NextResponse.json({ 
-      id: roomId,
-      message: 'Room created successfully',
-      middlewareWorking: true
-    });
-     
+    console.log('Rooms fetched successfully:', rooms);
+    return NextResponse.json(rooms);
 
   } catch (error) {
-    console.error('Error in room creation API:', error);
+    console.error('Error in rooms API:', error);
     return NextResponse.json(
       { 
         error: 'Internal server error',
@@ -135,4 +109,9 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function POST(request: NextRequest) {
+  // For POST requests, just redirect to GET (since component is calling POST)
+  return GET(request);
 }

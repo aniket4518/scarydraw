@@ -4,6 +4,47 @@ import { JWT_SCERET} from "@repo/common/environment";
  import {prismaclient} from "@repo/db/client";
   
 
+// messageTypes.ts
+export type Message =
+  | {
+      type: "RECT";
+      startX: number;
+      startY: number;
+      width: number;
+      height: number;
+      color?: string;
+    }
+  | {
+      type: "CIRCLE";
+      startX: number;
+      startY: number;
+      radius: number;
+      color?: string;
+    }
+  | {
+      type: "LINE";
+      startX: number;
+      startY: number;
+      width: number;
+      height: number;
+      color?: string;
+    }
+  | {
+      type: "FREEHAND";
+      startX: number;
+      startY: number;
+      points: [number, number][];
+      color?: string;
+    }
+  | {
+      type: "TEXT";
+      startX: number;
+      startY: number;
+      content: string;
+      color?: string;
+    };
+
+
 const wss = new WebSocketServer({ port: 8080 });
 interface User {
     userid :string ,
@@ -76,20 +117,30 @@ wss.on('connection', (ws, request) => {
     if(parssedData.type==="chat"){
      const roomId   = Number (parssedData.roomId )  ;
        const message   = parssedData.message  ;
+      
 
-       await prismaclient.chat.create({
-         data: {
-           roomId,
-           userId: userid,
-           message
-         }
+       const newmessage =await (prismaclient as any).message.create({
+        data: {
+        type: message.type,
+        startX: message.startX,
+        startY: message.startY,
+        width: "width" in message ? message.width : undefined,
+        height: "height" in message ? message.height : undefined,
+        radius: "radius" in message ? message.radius : undefined,
+        points: "points" in message ? message.points : undefined,
+        content: "content" in message ? message.content : undefined,
+        color: "color" in message ? message.color : undefined,
+         
+      },
+       
+  
         })
       users.forEach(user => {
       if (user.rooms.includes(roomId.toString())) {
         user.ws.send(JSON.stringify({
            type: "chat",
               roomId,
-              message 
+              message:newmessage 
             }))
       }
     })

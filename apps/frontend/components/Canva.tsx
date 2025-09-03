@@ -1,19 +1,16 @@
 "use client"
 import { useEffect , useRef} from "react";
-import drawPage from "./draw";
-export default function  Canva ({
-  roomId,
-  socket
-}:{
+import drawpage from "./draw";
+ 
+export default function  Canva ({roomId}:{
   roomId:number
-  socket:WebSocket  
-}
- ){
-    const canvasRef = useRef<HTMLCanvasElement>(null);
+}){
+    const canvasRef =  useRef<HTMLCanvasElement>(null);
        
       useEffect(() => {
-        if (canvasRef.current) {
-         drawPage( canvasRef as React.RefObject<HTMLCanvasElement>,roomId, socket  );
+        if (canvasRef.current){
+          const canvas = canvasRef.current 
+           drawpage(canvas,roomId)
         }
       }, [canvasRef]);
     
