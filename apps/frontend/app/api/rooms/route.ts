@@ -51,13 +51,13 @@ export async function GET(request: NextRequest) {
     }
 
     const tokenPayload = {
-      userId: userId,  // Use the real database user ID
+      userId: userId,  
       email: session.user.email,
       name: session.user.name,
     };
 
     const token = jwt.sign(tokenPayload, NEXTAUTH_SECRET);
-    console.log('Generated JWT token for rooms request');
+    console.log('Generated JWT token for rooms request',token);
 
     // Send request to backend
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';

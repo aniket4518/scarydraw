@@ -13,7 +13,7 @@ type shape ={
     centery:number,
     radius:number,
 }
- export default async function  drawpage(canvas:HTMLCanvasElement,roomId:number){
+ export default async function  drawpage(canvas:HTMLCanvasElement,roomId:number,socket:WebSocket){
   console.log("Draw function called with canvas:", canvas)
   
   const ctx = canvas.getContext('2d')
@@ -53,6 +53,8 @@ type shape ={
                     height
                 })
                 clearcanvas(canvas,ctx,existingshape)
+
+                 
            })
            canvas.addEventListener("mousemove",(e)=>{
              if (clicked){
@@ -65,7 +67,7 @@ type shape ={
                  
                 ctx.strokeRect(startx,starty,width,height)
              
-                 
+                
                   
                 
              }
@@ -92,8 +94,8 @@ type shape ={
             async function getshapefromserver(roomId:number) {
                const response = await  axios.get(`${Http_Backend}/chats/${roomId}`)
                 const data = response.data;
-                console.log(data)
-               
+              
+               return data
                }
            
 

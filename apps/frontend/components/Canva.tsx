@@ -2,15 +2,16 @@
 import { useEffect , useRef} from "react";
 import drawpage from "./draw";
  
-export default function  Canva ({roomId}:{
+export default function  Canva ({roomId,socket} :{
   roomId:number
+  socket:WebSocket
 }){
     const canvasRef =  useRef<HTMLCanvasElement>(null);
        
       useEffect(() => {
         if (canvasRef.current){
           const canvas = canvasRef.current 
-           drawpage(canvas,roomId)
+           drawpage(canvas,roomId,socket)
         }
       }, [canvasRef]);
     

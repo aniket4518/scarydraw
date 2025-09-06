@@ -2,43 +2,51 @@
 import { useEffect, useState } from "react";
 import Canva from "./Canva";
 import { ws_backend } from "@/config";
-import { getCsrfToken } from "next-auth/react";
+import getWsToken from "./Gettoken";
 
-export default async function SocketCanvas({ roomId }: { roomId: number }) {
-    //ws connection 
-   const session = await ();
-  const token =  
-    const [socket, setSocket] = useState<WebSocket | null>(null)
-    console.log("from socket canvas", roomId)
-    useEffect(()=>{
-     const ws = new WebSocket(`${ws_backend}`)
+export default function SocketCanvas({ roomId }: { roomId: number }) {
+  const [socket, setSocket] = useState<WebSocket | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let ws: WebSocket;
+
+    const setupSocket = async () => {
+      try {
+        const token = await getWsToken();
+        console.log("token from socket canva", token);
+
+        ws = new WebSocket(`${ws_backend}?token=${token}`);
+
         ws.onopen = () => {
-            setSocket(ws)
-            ws.send(JSON.stringify({
-                type:"join_room",
-                roomId
-            }))
-        }
-        return () => {
-            ws.close()
-        }
-    },[roomId])
- if (!socket){
-    return (
-        <div> 
-            connecting to ws server ........
-        </div>
-    );
+          setSocket(ws);
+          ws.send(
+            JSON.stringify({
+              type: "join_room",
+              roomId,
+            })
+          );
+          setLoading(false);
+        };
+
+        ws.onclose = () => {
+          console.log("WebSocket closed");
+        };
+      } catch (error) {
+        console.error("Error getting token or connecting socket:", error);
+      }
+    };
+
+    setupSocket();
+
+    return () => {
+      if (ws) ws.close();
+    };
+  }, [roomId]);
+
+  if (loading || !socket) {
+    return <div>connecting to ws server ........</div>;
+  }
+
+  return <Canva roomId={roomId} socket={socket} />;
 }
-
- 
-
- 
-return (
-    <>
-        <Canva roomId={roomId} />
-    </>
-);
-
-}
- 

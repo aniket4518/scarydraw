@@ -39,6 +39,7 @@ const handler = NextAuth({
              email: user.email,
              name: user.name,
              photo:user.image
+             
             },
              update:{
                name:user.name as string ,
@@ -55,21 +56,25 @@ const handler = NextAuth({
     //          },
     //   });
     // }
-
+       
     token.id = dbUser.id;
   }
-   console.log("roken",token)
+   console.log("roken",token.id)
   return token;
   
 },
 
 
-   async session({ session, token ,user}) {
+   async session({ session, token }) {
       if (token?.id && session.user) {
         // Extend the user object to include id
+        
         (session.user as typeof session.user & { id?: string }).id = token.id as string;
+            
+     
+         
       }
-      return session;
+      return session ;
     },
   },
 });

@@ -5,7 +5,7 @@ import Link from 'next/link';
 function App() {
   return (
     <div className="min-h-screen bg-white text-gray-900 overflow-hidden">
-      {/* Background Pattern */}
+      
       <div className="fixed inset-0 z-0">
         <div className="absolute inset-0 bg-gradient-to-br from-orange-50 to-red-50"></div>
         <div className="absolute inset-0" style={{

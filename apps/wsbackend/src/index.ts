@@ -47,23 +47,37 @@ export type Message =
 
 const wss = new WebSocketServer({ port: 8080 });
 interface User {
-    userid :string ,
+     email:string ,
     rooms:string [],
     ws :WebSocket
 }
+
  
 const users :User[]=[]
+const NEXTAUTH_SECRET=process.env.NEXTAUTH_SECRET ||"hiiamaniket"
 function connection (token:string): string | null{
     try {
-    const decoded = Jwt.verify(token, JWT_SCERET) as JwtPayload;
-    
-    if (typeof decoded === 'string' || !decoded || !decoded.userId) {
+       
+    if (!NEXTAUTH_SECRET) {
+      // secret not configured
+      console.log("didn't get the secret")
+      return null;
+    }
+
+    if (!token) {
+      console.log("not get the token")
+      return null;
+    }
+       
+    const decoded = Jwt.verify(token, NEXTAUTH_SECRET) as JwtPayload | string;
+    console.log("this is decoded",decoded)
+    if (typeof decoded === 'string' || !decoded || !(decoded as JwtPayload).email) {
        
       return null;
     }
      
     // You can return a string here if needed, for now returning userId as string
-    return decoded.userId as string;
+    return (decoded as JwtPayload).email as string;
     
   } catch (error) {
       
@@ -74,22 +88,24 @@ function connection (token:string): string | null{
  
 wss.on('connection', (ws, request) => {
   const url = request.url;
+  console.log("this is url",url)
   if(!url){
-     
+     console.log("no url")
     return;
   }
   
   const queryParams = new URLSearchParams(url.split('?')[1] || '');
   const token = queryParams.get('token') || "";
-  
-  const userid=  connection (token)
+  console.log(token)
+  const email=  connection (token)
    
-   if (!userid){
+   if (!email){
+    console.log("no email found")
     ws.close() 
     return null
    }
    users.push({
-    userid,
+    email,
     rooms:[],
      ws  
    })
