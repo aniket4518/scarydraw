@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Canva from "./Canva";
 import { ws_backend } from "@/config";
 import getWsToken from "./Gettoken";
+import axios from "axios";
 
 export default function SocketCanvas({ roomId }: { roomId: number }) {
   const [socket, setSocket] = useState<WebSocket | null>(null);
@@ -13,6 +14,7 @@ export default function SocketCanvas({ roomId }: { roomId: number }) {
 
     const setupSocket = async () => {
       try {
+         
         const token = await getWsToken();
         console.log("token from socket canva", token);
 
@@ -42,7 +44,7 @@ export default function SocketCanvas({ roomId }: { roomId: number }) {
     return () => {
       if (ws) ws.close();
     };
-  }, [roomId]);
+  }, []);
 
   if (loading || !socket) {
     return <div>connecting to ws server ........</div>;

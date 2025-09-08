@@ -50,7 +50,7 @@ function App() {
           <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-6">
              <Link href="/room">
             <button className="group bg-gradient-to-r from-red-600 to-orange-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:shadow-2xl hover:shadow-red-500/25 transition-all duration-300 hover:scale-105 flex items-center space-x-2">
-              <span>Create Room</span>
+              <span> Room</span>
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
             </Link>

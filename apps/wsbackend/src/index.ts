@@ -117,9 +117,17 @@ wss.on('connection', (ws, request) => {
     if (!parssedData) return;
     if (parssedData.type === "join_room") {
         const user = users.find(x => x.ws === ws)
-
-        user?.rooms.push(parssedData.roomId)
-        
+        if (user) {
+          console.log(`✅ User ${user.email} joining room ${parssedData.roomId}`)
+          // Convert to string for consistent comparison
+          const roomIdStr = parssedData.roomId.toString()
+          if (!user.rooms.includes(roomIdStr)) {
+            user.rooms.push(roomIdStr)
+          }
+          console.log(`✅ User ${user.email} is now in rooms:`, user.rooms)
+        } else {
+          console.log("❌ User not found when trying to join room")
+        }
     }
     
 
@@ -133,9 +141,42 @@ wss.on('connection', (ws, request) => {
     if(parssedData.type==="chat"){
      const roomId   = Number (parssedData.roomId )  ;
        const message   = parssedData.message  ;
-      
+       
+       // Find the user sending the message
+       const currentUser = users.find(u => u.ws === ws);
+       if (!currentUser) {
+         console.log("User not found");
+         return;
+       }
+       
+       // Find user in database
+       const dbUser = await prismaclient.user.findFirst({
+         where: { email: currentUser.email }
+       });
+       
+       if (!dbUser) {
+         console.log("Database user not found");
+         return;
+       }
 
-       const newmessage =await (prismaclient as any).message.create({
+       // Find or create chat for this user and room
+       let chat = await prismaclient.chat.findFirst({
+         where: {
+           roomId: roomId,
+           userId: dbUser.id
+         }
+       });
+
+       if (!chat) {
+         chat = await prismaclient.chat.create({
+           data: {
+             roomId: roomId,
+             userId: dbUser.id
+           }
+         });
+       }
+
+       const newmessage = await prismaclient.message.create({
         data: {
         type: message.type,
         startX: message.startX,
@@ -146,18 +187,25 @@ wss.on('connection', (ws, request) => {
         points: "points" in message ? message.points : undefined,
         content: "content" in message ? message.content : undefined,
         color: "color" in message ? message.color : undefined,
-         
-      },
-       
-  
+        chatId: chat.id
+      }
         })
       users.forEach(user => {
       if (user.rooms.includes(roomId.toString())) {
-        user.ws.send(JSON.stringify({
-           type: "chat",
-              roomId,
-              message:newmessage 
-            }))
+        console.log(`📤 Sending message to user: ${user.email} in room: ${roomId}`)
+        try {
+          // ✅ FIXED: Send original message format, not database version
+          user.ws.send(JSON.stringify({
+             type: "chat",
+                roomId,
+                message: message  // Send original message, not newmessage from DB
+              }))
+          console.log("✅ Message sent successfully")
+        } catch (error) {
+          console.error("❌ Error sending message to user:", error)
+        }
+      } else {
+        console.log(`❌ User ${user.email} not in room ${roomId}. User rooms:`, user.rooms)
       }
     })
     }

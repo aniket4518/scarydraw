@@ -133,6 +133,15 @@ app.post ("/room",NextAuthmiddleware,async(req,res)=>{
          }
 
          console.log("Found user:", user.id, user.email);
+         const namematch = await prismaclient.room.findFirst({
+          where:{
+            name:parssedData.data.roomname
+          }
+         })
+         if(namematch){
+            res.status(402).json({msg:"same name already exist"})
+            return
+         }
  
          const room = await prismaclient.room.create({
            data:{
@@ -175,6 +184,9 @@ app.post ("/room",NextAuthmiddleware,async(req,res)=>{
              adminId: userid
            }
          })
+         if (!rooms){
+          res.json("no rooms found     create a room first")
+         }
          console.log("Found rooms:", rooms);
          res.json(rooms)
        } catch (error) {
@@ -183,7 +195,7 @@ app.post ("/room",NextAuthmiddleware,async(req,res)=>{
        }
  })
 
-//getting chats of that room from db
+//getting messages of that room from db
 app.get("/chats/:roomid",  async (req, res) => {
   const roomid = Number(req.params.roomid);
   if(typeof roomid !== 'number' ){
@@ -191,21 +203,21 @@ app.get("/chats/:roomid",  async (req, res) => {
     return
   }
   
-  const chats = await prismaclient.chat.findMany({
+  // Get all messages for this room through chats
+  const messages = await prismaclient.message.findMany({
     where:{
-      roomId: roomid
+      chat: {
+        roomId: roomid
+      }
     },
     orderBy :{
-      id:"asc"
+      createdAt:"asc"
     },
     take : 100
   })
-  res.json(chats);
+  res.json(messages);
 })
-
-app.listen(port , ()=>{
-    console.log (`server is running on port ${port}`)
-})
+ 
 
 app.listen(port , ()=>{
     console.log (`server is running on port ${port}`)
