@@ -213,7 +213,7 @@ app.get("/chats/:roomid",  async (req, res) => {
     orderBy :{
       createdAt:"asc"
     },
-    take : 100
+    take : 1000
   })
   res.json(messages);
 })

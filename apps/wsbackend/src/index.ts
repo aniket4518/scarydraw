@@ -194,7 +194,7 @@ wss.on('connection', (ws, request) => {
       if (user.rooms.includes(roomId.toString())) {
         console.log(`📤 Sending message to user: ${user.email} in room: ${roomId}`)
         try {
-          // ✅ FIXED: Send original message format, not database version
+         
           user.ws.send(JSON.stringify({
              type: "chat",
                 roomId,
