@@ -194,16 +194,14 @@ app.post ("/room",NextAuthmiddleware,async(req,res)=>{
          res.status(500).json({ msg: "Error fetching rooms" })
        }
  })
-
-//getting messages of that room from db
+ 
 app.get("/chats/:roomid",  async (req, res) => {
   const roomid = Number(req.params.roomid);
   if(typeof roomid !== 'number' ){
     res.status(400).json({msg:"invalid room id"})
     return
   }
-  
-  // Get all messages for this room through chats
+ 
   const messages = await prismaclient.message.findMany({
     where:{
       chat: {
@@ -216,6 +214,25 @@ app.get("/chats/:roomid",  async (req, res) => {
     take : 1000
   })
   res.json(messages);
+})
+app.delete("/chats/:messageId", async (req, res) => {
+  const messageId = req.params.messageId
+  if (typeof messageId !== 'number') {
+    res.status(400).json({ msg: "invalid message id" })
+    return
+  }
+
+  try {
+    const deletedMessage = await prismaclient.message.delete({
+      where: {
+        id: messageId
+      }
+    })
+    res.json({ success: true, deleted: deletedMessage })
+  } catch (error) {
+    console.error("Error deleting message:", error)
+    res.status(500).json({ msg: "failed to delete message" })
+  }
 })
  
 

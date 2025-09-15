@@ -1,21 +1,30 @@
 import type { ReactNode } from "react";
- enum tools {
-  "RECT",
- "CIRCLE",
- "FREEHAND",
-  "ERASER"
- }
+import { tools } from "./draw";
+//  enum tools {
+//   "RECT",
+//  "CIRCLE",
+//  "FREEHAND",
+//   "ERASER"
+//  }
 export default function IconButton({
   icon,
   onClick,
-  tool
+  tool,
+  currentTool,
+  toolType
 }: {
   icon: ReactNode,
   onClick: () => void
-  tool:tools
+  tool :tools
+  toolType:tools
+  currentTool:tools
 }) {
+  const isSelected =currentTool ===toolType
   return (
-    <div className="rounded-full border-black-500 p-2 text-xl" onClick={onClick}>
+    <div className={`
+        ${isSelected ? 'text-red-700' : 'text-black'}
+        transition-colors duration-200 p-2
+      `} onClick={onClick}>
       {icon}
     </div>
   );

@@ -1,7 +1,5 @@
-import { Shapes } from "lucide-react"
-import { Http_Backend } from "../../config"
+ import { Http_Backend } from "../../config"
 import axios from 'axios'
-import { startTransition } from "react"
 
 export enum tools {
   RECT,
@@ -10,38 +8,29 @@ export enum tools {
   ERASER
 }
 
-// console.log("🛠️ Tools enum values:", {
-//   RECT: tools.RECT,
-//   CIRCLE: tools.CIRCLE,
-//   FREEHAND: tools.FREEHAND
-// })
-
-type shape = {
-    type: "RECT",
-    startX: number,
-    startY: number,
-    width: number,
-    height: number,
-} | {
-    type: "CIRCLE",
-    startX: number,
-    startY: number,
-    radius: number,
-}|{
-    type: "FREEHAND",
-    startX: number,
-    startY: number,
-    points: [number, number][]
-}|{
-  type:"ERASER", 
+ 
+type Message = {
+  id?: number                     
+  type: "RECT" | "CIRCLE" | "FREEHAND" | "TEXT" | "LINE"
+  startX: number
+  startY: number
+  width?: number                  
+  height?: number               
+  radius?: number                 
+  points?: [number, number][]    
+  content?: string              
+  color?: string                 
+  createdAt?: Date               
+  chatId?: number               
 }
 
-export default async function drawpage(canvas: HTMLCanvasElement, roomId: number, socket: WebSocket,tool:tools) {
+export default async function drawpage(canvas: HTMLCanvasElement, roomId: number, socket: WebSocket, tool: tools) {
   
+  // Clean up previous listeners
   if (!(canvas as any)._listeners) {
     (canvas as any)._listeners = []
   }
- 
+  
   ;(canvas as any)._listeners.forEach((listenerInfo: any) => {
     canvas.removeEventListener(listenerInfo.type, listenerInfo.handler)
   })
@@ -49,71 +38,74 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
   
   const ctx = canvas.getContext('2d')
   if (!ctx) {
-    
     return () => {}  
   }
   
   canvas.width = canvas.offsetWidth;
   canvas.height = canvas.offsetHeight;
  
-  const existingshape: shape[] = []
+  // ✅ UNIFIED MESSAGES ARRAY - SAME TYPE AS DATABASE
+  const messages: Message[] = []
+  const deleted:Message[]=[]
+  const Maxlength= 20
   
- 
-  const existingMessages = await getshapefromserver(roomId)
+  console.log("📥 Loading existing messages from server...")
   
-  
-  if (existingMessages && Array.isArray(existingMessages)) {
-    existingMessages.forEach((msg: any) => {
-     
-      if (msg.type === "RECT") {
-        existingshape.push({
-          type: "RECT",
-          startX: msg.startX,
-          startY: msg.startY,
-          width: msg.width,
-          height: msg.height
-        })
-      } else if (msg.type === "CIRCLE") {
-        existingshape.push({
-          type: "CIRCLE",
-          startX: msg.startX,
-          startY: msg.startY,
-          radius: msg.radius
-        })
-      }
-      else if (msg.type === "FREEHAND") {
-        existingshape.push({
-          type: "FREEHAND",
-          startX: msg.startX,
-          startY: msg.startY,
-          points: msg.points || []
-        })
-      }
+  // ✅ LOAD ALL EXISTING MESSAGES FROM SERVER - NO TYPE CONVERSION NEEDED!
+  const existingMessagesFromServer = await getMessagesFromServer(roomId)
+
+  if (existingMessagesFromServer && Array.isArray(existingMessagesFromServer)) {
+    existingMessagesFromServer.forEach((msg: Message) => {
+      console.log("📦 Loading message from server:", msg.type, "ID:", msg.id)
+      messages.push(msg) // ✅ DIRECT PUSH - NO CONVERSION NEEDED!
     })
   }
+  //message jo delete kiyeusko push kardena hain deleted main aur usme sai message from last ke 10 messageko delete karana hai with message id 
+ async function addToDeleted (messagesToDelete:Message){
+     deleted.unshift(messagesToDelete)
+
+     //if  we reaches maxlength . Remove the oldest 
+     if(deleted.length>Maxlength){
+          const  oldest =deleted.pop()
+          if(oldest && oldest.id){
+            const messageId=oldest.id
+           await  deleteFromServer(messageId)
+          }
+     }
+ } 
 
  
+
+
+
+
+
+  // ✅ WEBSOCKET MESSAGE HANDLER - ADDS TO UNIFIED ARRAY
   const handleMessage = (event: MessageEvent) => {
-    
     try {
-      const message = JSON.parse(event.data)
-      if (message.type === "chat" && message.message) {
- 
-        existingshape.push(message.message)
-        clearcanvas(canvas, ctx, existingshape)
+      const socketMessage = JSON.parse(event.data)
+      if (socketMessage.type === "chat" && socketMessage.message) {
+        console.log("🔥 Received new message via WebSocket:", socketMessage.message.type)
         
+        // ✅ ADD TO UNIFIED MESSAGES ARRAY - NO CONVERSION NEEDED!
+        messages.push(socketMessage.message)
+        
+        // ✅ REDRAW ALL MESSAGES
+        clearCanvas(canvas, ctx, messages)
+        
+        console.log("✅ Total messages now:", messages.length)
       }
     } catch (error) {
-      console.error(" Error parsing WebSocket message:", error)
+      console.error("❌ Error parsing WebSocket message:", error)
     }
   }
 
- 
   socket.removeEventListener('message', handleMessage)
   socket.addEventListener('message', handleMessage)
    
-  clearcanvas(canvas, ctx, existingshape)
- 
+  // ✅ INITIAL RENDER OF ALL MESSAGES
+  clearCanvas(canvas, ctx, messages)
+  console.log("🎨 Canvas rendered with", messages.length, "messages")
   
   let clicked = false
   let startx = 0
@@ -122,48 +114,54 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
   
   const handleMouseDown = (e: MouseEvent) => {
     clicked = true
-  
     const rect = canvas.getBoundingClientRect()  
     startx = e.clientX - rect.left
     starty = e.clientY - rect.top
      
     if (tool === tools.FREEHAND) {
       pencilPoints = [[startx, starty]]
-   
     } else if (tool === tools.ERASER) {
-    // Simple hit-test (can be improved) — iterate backwards when splicing
-    for (let i = existingshape.length - 1; i >= 0; i--) {
-      if (isInsideShape(startx, starty, existingshape[i])) {
-        existingshape.splice(i, 1) // remove the shape
+      console.log("🗑️ Eraser tool - checking for messages to delete...")
+      
+      // ✅ ERASE FROM UNIFIED MESSAGES ARRAY
+      let deletedCount = 0
+      for (let i = messages.length - 1; i >= 0; i--) {
+        if (isInsideMessage(startx, starty, messages[i])) {
+          console.log("🗑️ Deleting message:", messages[i].type, "ID:", messages[i].id)
+          const messageToDelete=messages[i]
+          messages.splice(i, 1)
+           
+          addToDeleted(messageToDelete)
+        }
       }
-    }
-    clearcanvas(canvas, ctx, existingshape)
-  } else {
+      
+      if (deletedCount > 0) {
+        console.log("🗑️ Deleted", deletedCount, "messages")
+        clearCanvas(canvas, ctx, messages)
+      }
+    } else {
       pencilPoints = []  
     }
- }
+  }
 
   const handleMouseUp = (e: MouseEvent) => {
     if (!clicked) return
     clicked = false
 
-    
-
     const rect = canvas.getBoundingClientRect()  
-    const endx= (e.clientX - rect.left)
-    const endy= (e.clientY - rect.top)
+    const endx = (e.clientX - rect.left)
+    const endy = (e.clientY - rect.top)
     
-    let shape: shape | null = null
+    let newMessage: Message | null = null
 
+    // ✅ SIMPLIFIED LOGIC - CREATE MESSAGE DIRECTLY
     if (tool === tools.RECT) {
-     
-    
       const minX = Math.min(startx, endx)
       const minY = Math.min(starty, endy)
       const maxX = Math.max(startx, endx)
       const maxY = Math.max(starty, endy)
       
-      shape = {
+      newMessage = {
         type: "RECT",
         startX: minX,
         startY: minY,
@@ -172,43 +170,48 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
       }
     }
     else if (tool === tools.CIRCLE) {
-    
-      const radius = Math.sqrt(Math.pow(endx- startx, 2) + Math.pow(endy - starty, 2))
-      shape = {
+      const radius = Math.sqrt(Math.pow(endx - startx, 2) + Math.pow(endy - starty, 2))
+      newMessage = {
         type: "CIRCLE",
         startX: startx,
         startY: starty,
-        radius
+        radius: radius
       }
     }
     else if (tool === tools.FREEHAND) {
-    
       if (pencilPoints.length === 0 || 
           pencilPoints[pencilPoints.length - 1][0] !== endx || 
           pencilPoints[pencilPoints.length - 1][1] !== endy) {
         pencilPoints.push([endx, endy])
       }
       
-      shape = {
+      newMessage = {
         type: "FREEHAND",
         startX: startx,
         startY: starty,
         points: [...pencilPoints] 
       }
-    } else {
-      console.log("Unknown tool:", tool)
-      return  
     }
 
-    if (shape) {
-      existingshape.push(shape)
-      clearcanvas(canvas, ctx, existingshape)
-     
+    if (newMessage) {
+      console.log("🎨 Creating new message:", newMessage.type)
+      
+      // ✅ ADD TO UNIFIED MESSAGES ARRAY
+      messages.push(newMessage)
+      
+      // ✅ REDRAW ALL MESSAGES
+      clearCanvas(canvas, ctx, messages)
+      
+      console.log("✅ Total messages now:", messages.length)
+      
+      // ✅ SEND TO WEBSOCKET (WHICH SAVES TO DB)
       socket.send(JSON.stringify({
         type: "chat",
-        message: shape,
+        message: newMessage,
         roomId
       }))
+      
+      console.log("📤 Message sent to server for DB storage")
     }
  
     if (tool === tools.FREEHAND) {
@@ -219,15 +222,13 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
   const handleMouseMove = (e: MouseEvent) => {
     if (clicked) {
       const rect = canvas.getBoundingClientRect()  
-      const  currentx = (e.clientX - rect.left)  
-      const currenty= (e.clientY - rect.top)  
-      clearcanvas(canvas, ctx, existingshape)
-
-      console.log("Mouse move with tool:", tool, "Tool name:", tools[tool])
+      const currentx = (e.clientX - rect.left)  
+      const currenty = (e.clientY - rect.top)  
+      
+      // ✅ REDRAW ALL EXISTING MESSAGES
+      clearCanvas(canvas, ctx, messages)
 
       if (tool === tools.RECT) {
-        console.log("Drawing RECT preview")
-    
         const minX = Math.min(startx, currentx)
         const minY = Math.min(starty, currenty)
         const maxX = Math.max(startx, currentx)
@@ -235,13 +236,11 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
         
         ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
       } else if (tool === tools.CIRCLE) {
-        console.log("Drawing CIRCLE preview")
         const radius = Math.sqrt(Math.pow(currentx - startx, 2) + Math.pow(currenty - starty, 2));
         ctx.beginPath();
         ctx.arc(startx, starty, radius, 0, Math.PI * 2);
         ctx.stroke();
       } else if (tool === tools.FREEHAND) {
-        console.log(" Drawing FREEHAND preview")
         pencilPoints.push([currentx, currenty]);
         if (pencilPoints.length > 1) {
           ctx.beginPath();
@@ -251,90 +250,91 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
           }
           ctx.stroke();
         }
-      } else {
-    
-        pencilPoints = []
       }
     }
   }
- 
-  
 
-  
-    
   canvas.addEventListener("mousedown", handleMouseDown)
   canvas.addEventListener("mouseup", handleMouseUp)
   canvas.addEventListener("mousemove", handleMouseMove)
   
-   
   ;(canvas as any)._listeners.push(
     { type: "mousedown", handler: handleMouseDown },
     { type: "mouseup", handler: handleMouseUp },
     { type: "mousemove", handler: handleMouseMove }
   )
 
-  function clearcanvas(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, existingshape: shape[]) {
+  // ✅ UNIFIED CANVAS CLEARING FUNCTION - WORKS WITH MESSAGE TYPE
+  function clearCanvas(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, allMessages: Message[]) {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
-    existingshape.forEach((shape, index) => {
-       
-      if (shape.type === "RECT") {
-        ctx.strokeRect(shape.startX, shape.startY, shape.width, shape.height)
-      } else if (shape.type === "CIRCLE") {
+    
+    allMessages.forEach((message) => {
+      // ✅ SIMPLIFIED - NO MORE IF/ELSE CONVERSION NEEDED!
+      if (message.type === "RECT" && message.width && message.height) {
+        ctx.strokeRect(message.startX, message.startY, message.width, message.height)
+      } else if (message.type === "CIRCLE" && message.radius) {
         ctx.beginPath()
-        ctx.arc(shape.startX, shape.startY, shape.radius, 0, Math.PI * 2)
+        ctx.arc(message.startX, message.startY, message.radius, 0, Math.PI * 2)
         ctx.stroke()
-      } else if (shape.type === "FREEHAND" && shape.points.length > 1) {
+      } else if (message.type === "FREEHAND" && message.points && message.points.length > 1) {
         ctx.beginPath()
-        ctx.moveTo(shape.points[0][0], shape.points[0][1])
-        for (let i = 1; i < shape.points.length; i++) {
-          ctx.lineTo(shape.points[i][0], shape.points[i][1])
+        ctx.moveTo(message.points[0][0], message.points[0][1])
+        for (let i = 1; i < message.points.length; i++) {
+          ctx.lineTo(message.points[i][0], message.points[i][1])
         }
         ctx.stroke()
       }
     })
   }
 
-  
   return () => {
- 
+    console.log("🧹 Cleaning up drawpage")
     socket.removeEventListener('message', handleMessage)
     
-    // Use the new tracking system for cleanup
     if ((canvas as any)._listeners) {
       (canvas as any)._listeners.forEach((listenerInfo: any) => {
         canvas.removeEventListener(listenerInfo.type, listenerInfo.handler)
       })
       ;(canvas as any)._listeners = []
     }
-    
   }
 }
 
-async function getshapefromserver(roomId: number) {
+// ✅ RENAMED FUNCTION TO REFLECT THAT IT GETS MESSAGES
+async function getMessagesFromServer(roomId: number): Promise<Message[]> {
   try {
-     
+    console.log("🌐 Fetching messages from server for room:", roomId)
     const response = await axios.get(`${Http_Backend}/chats/${roomId}`)
-    
+    console.log("✅ Server response:", response.data.length, "messages")
     return response.data
   } catch (error) {
-    
+    console.error("❌ Error fetching messages from server:", error)
     return []
   }
 }
-function isInsideShape(x: number, y: number, shape: shape): boolean {
-  if (shape.type === "RECT") {
+async function deleteFromServer(messageId:number){
+try{
+  await axios.delete(`${Http_Backend}/chats/${messageId}`) 
+}
+catch(error){
+  console.error("error in axios")
+}
+}
+
+function isInsideMessage(x: number, y: number, message: Message): boolean {
+  if (message.type === "RECT" && message.width && message.height) {
     return (
-      x >= shape.startX &&
-      x <= shape.startX + shape.width &&
-      y >= shape.startY &&
-      y <= shape.startY + shape.height
+      x >= message.startX &&
+      x <= message.startX + message.width &&
+      y >= message.startY &&
+      y <= message.startY + message.height
     )
-  } else if (shape.type === "CIRCLE") {
-    const dx = x - shape.startX
-    const dy = y - shape.startY
-    return Math.sqrt(dx * dx + dy * dy) <= shape.radius
-  } else if (shape.type === "FREEHAND") {
-    return shape.points.some(([px, py]) => {
+  } else if (message.type === "CIRCLE" && message.radius) {
+    const dx = x - message.startX
+    const dy = y - message.startY
+    return Math.sqrt(dx * dx + dy * dy) <= message.radius
+  } else if (message.type === "FREEHAND" && message.points) {
+    return message.points.some(([px, py]) => {
       return Math.hypot(px - x, py - y) < 10 // 10px tolerance
     })
   }

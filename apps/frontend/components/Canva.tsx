@@ -1,7 +1,7 @@
 "use client"
 import { useEffect, useRef, useState } from "react";
 import drawpage, { tools } from "./draw";
-import { Circle, Icon, PencilIcon, RectangleVerticalIcon } from "lucide-react";
+import { Circle, EraserIcon, Icon, PencilIcon, RectangleHorizontal, RectangleVerticalIcon } from "lucide-react";
 import IconButton from "./Icon";
 
 export default function Canva({ roomId, socket }: {
@@ -10,17 +10,11 @@ export default function Canva({ roomId, socket }: {
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [tool,settool]=useState<tools>(tools.ERASER)   
-       
+  
   useEffect(() => {
     let cleanup: (() => void) | undefined;
     
-    console.log("Canva useEffect triggered", {
-      hasCanvas: !!canvasRef.current,
-      hasSocket: !!socket,
-      socketReadyState: socket?.readyState,
-      roomId,
-      currentTool: tools[tool]
-    });
+     
     
     if (canvasRef.current && socket && socket.readyState === WebSocket.OPEN) {
       const canvas = canvasRef.current;
@@ -48,14 +42,16 @@ export default function Canva({ roomId, socket }: {
     <>
       <canvas ref={canvasRef} className="w-full h-full border border-gray-200 absolute" />
 
-     <div className="fixed top-5 left-180  inline-flex bg-slate-100  boder-double border shadow-xs   hover:bg-sky-200  " >
+     <div className="fixed top-5 left-180  inline-flex bg-slate-100  boder-double border shadow-lg rounded-full  hover:shadow-lg hover:shadow-sky-500/50  " >
        <IconButton 
-         icon={<PencilIcon size={34}/>} 
+         icon={<PencilIcon size={34} />} 
          onClick={() => { 
            
            settool(tools.FREEHAND);
          }} 
-         tool={tool} 
+          tool={tool}
+          currentTool={tool}        // ✅ PASS CURRENT TOOL
+          toolType={tools.FREEHAND}
        />
        <IconButton 
          icon={<Circle size={34} />} 
@@ -63,6 +59,8 @@ export default function Canva({ roomId, socket }: {
            settool(tools.CIRCLE); 
          }} 
          tool={tool} 
+         currentTool={tool}        // ✅ PASS CURRENT TOOL
+          toolType={tools.CIRCLE}
        />
        <IconButton 
          icon={<RectangleVerticalIcon size={34}/> } 
@@ -70,6 +68,17 @@ export default function Canva({ roomId, socket }: {
             settool(tools.RECT); 
          }} 
          tool={tool} 
+         currentTool={tool}
+         toolType={tools.RECT}
+       />
+       <IconButton 
+         icon={<EraserIcon size={34}/> } 
+         onClick={() => { 
+            settool(tools.ERASER); 
+         }} 
+         tool={tool} 
+         currentTool={tool}        // ✅ PASS CURRENT TOOL
+          toolType={tools.ERASER}
        />
      </div>
 
