@@ -24,8 +24,9 @@ type Message = {
   chatId?: number               
 }
 
-export default async function drawpage(canvas: HTMLCanvasElement, roomId: number, socket: WebSocket, tool: tools) {
+export default async function drawpage(canvas: HTMLCanvasElement, roomId: number, socket: WebSocket, initalTool: tools) {
   
+  let currentTool = initalTool
   // Clean up previous listeners
   if (!(canvas as any)._listeners) {
     (canvas as any)._listeners = []
@@ -74,12 +75,12 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
      }
  } 
 
+  const setTool = (newTool: tools) => {
+    console.log("🔧 Tool changed from", tools[currentTool], "to", tools[newTool]);
+    currentTool = newTool;
+  };
+
  
-
-
-
-
-
   // ✅ WEBSOCKET MESSAGE HANDLER - ADDS TO UNIFIED ARRAY
   const handleMessage = (event: MessageEvent) => {
     try {
@@ -118,9 +119,9 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
     startx = e.clientX - rect.left
     starty = e.clientY - rect.top
      
-    if (tool === tools.FREEHAND) {
+    if (currentTool === tools.FREEHAND) {
       pencilPoints = [[startx, starty]]
-    } else if (tool === tools.ERASER) {
+    } else if (currentTool === tools.ERASER) {
       console.log("🗑️ Eraser tool - checking for messages to delete...")
       
       // ✅ ERASE FROM UNIFIED MESSAGES ARRAY
@@ -130,7 +131,7 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
           console.log("🗑️ Deleting message:", messages[i].type, "ID:", messages[i].id)
           const messageToDelete=messages[i]
           messages.splice(i, 1)
-           
+           deletedCount++
           addToDeleted(messageToDelete)
         }
       }
@@ -155,7 +156,7 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
     let newMessage: Message | null = null
 
     // ✅ SIMPLIFIED LOGIC - CREATE MESSAGE DIRECTLY
-    if (tool === tools.RECT) {
+    if (currentTool=== tools.RECT) {
       const minX = Math.min(startx, endx)
       const minY = Math.min(starty, endy)
       const maxX = Math.max(startx, endx)
@@ -169,7 +170,7 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
         height: maxY - minY
       }
     }
-    else if (tool === tools.CIRCLE) {
+    else if (currentTool === tools.CIRCLE) {
       const radius = Math.sqrt(Math.pow(endx - startx, 2) + Math.pow(endy - starty, 2))
       newMessage = {
         type: "CIRCLE",
@@ -178,7 +179,7 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
         radius: radius
       }
     }
-    else if (tool === tools.FREEHAND) {
+    else if (currentTool === tools.FREEHAND) {
       if (pencilPoints.length === 0 || 
           pencilPoints[pencilPoints.length - 1][0] !== endx || 
           pencilPoints[pencilPoints.length - 1][1] !== endy) {
@@ -214,7 +215,7 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
       console.log("📤 Message sent to server for DB storage")
     }
  
-    if (tool === tools.FREEHAND) {
+    if (currentTool === tools.FREEHAND) {
       pencilPoints = []
     }
   }
@@ -228,19 +229,19 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
       // ✅ REDRAW ALL EXISTING MESSAGES
       clearCanvas(canvas, ctx, messages)
 
-      if (tool === tools.RECT) {
+      if (currentTool === tools.RECT) {
         const minX = Math.min(startx, currentx)
         const minY = Math.min(starty, currenty)
         const maxX = Math.max(startx, currentx)
         const maxY = Math.max(starty, currenty)
         
         ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
-      } else if (tool === tools.CIRCLE) {
+      } else if (currentTool === tools.CIRCLE) {
         const radius = Math.sqrt(Math.pow(currentx - startx, 2) + Math.pow(currenty - starty, 2));
         ctx.beginPath();
         ctx.arc(startx, starty, radius, 0, Math.PI * 2);
         ctx.stroke();
-      } else if (tool === tools.FREEHAND) {
+      } else if (currentTool === tools.FREEHAND) {
         pencilPoints.push([currentx, currenty]);
         if (pencilPoints.length > 1) {
           ctx.beginPath();
@@ -287,16 +288,19 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
     })
   }
 
-  return () => {
-    console.log("🧹 Cleaning up drawpage")
-    socket.removeEventListener('message', handleMessage)
-    
-    if ((canvas as any)._listeners) {
-      (canvas as any)._listeners.forEach((listenerInfo: any) => {
-        canvas.removeEventListener(listenerInfo.type, listenerInfo.handler)
-      })
-      ;(canvas as any)._listeners = []
-    }
+   return {
+    cleanup: () => {
+      console.log("🧹 Cleaning up drawpage")
+      socket.removeEventListener('message', handleMessage)
+      
+      if ((canvas as any)._listeners) {
+        (canvas as any)._listeners.forEach((listenerInfo: any) => {
+          canvas.removeEventListener(listenerInfo.type, listenerInfo.handler)
+        })
+        ;(canvas as any)._listeners = []
+      }
+    },
+    setTool: setTool
   }
 }
 
@@ -314,11 +318,20 @@ async function getMessagesFromServer(roomId: number): Promise<Message[]> {
 }
 async function deleteFromServer(messageId:number){
 try{
-  await axios.delete(`${Http_Backend}/chats/${messageId}`) 
+  console.log("this is from delete from server ",messageId)
+  const deleted = await axios.delete(`${Http_Backend}/chats/${messageId}`) 
+  if(deleted){
+    console.log("deleted sucessfully")
+  }
 }
-catch(error){
-  console.error("error in axios")
-}
+ catch(error) {
+    console.error("Error deleting message from server:", error)
+    if (axios.isAxiosError(error)) {
+      console.error("- Status:", error.response?.status)
+      console.error("- Message:", error.message)
+    }
+    return false
+  }
 }
 
 function isInsideMessage(x: number, y: number, message: Message): boolean {

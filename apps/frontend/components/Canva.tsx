@@ -10,7 +10,7 @@ export default function Canva({ roomId, socket }: {
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [tool,settool]=useState<tools>(tools.ERASER)   
-  
+  const drawpageRef = useRef<{ setTool: (newTool: tools) => void } | null>(null);
   useEffect(() => {
     let cleanup: (() => void) | undefined;
     
@@ -20,9 +20,21 @@ export default function Canva({ roomId, socket }: {
       const canvas = canvasRef.current;
       
       const cleanupPromise = drawpage(canvas, roomId, socket, tool);
-      cleanupPromise.then((cleanupFn) => {
-        cleanup = cleanupFn;
-         
+      cleanupPromise.then((result: any) => {
+        // drawpage may resolve to a function or an object with cleanup/setTool
+        if (typeof result === 'function') {
+          cleanup = result;
+        } else if (result && typeof result.cleanup === 'function') {
+          cleanup = result.cleanup;
+          drawpageRef.current = result;
+        } else {
+          // unexpected shape, try to attach setTool if present
+          if (result && typeof result.setTool === 'function') {
+            drawpageRef.current = result;
+          } else {
+            console.warn("Unexpected drawpage result:", result);
+          }
+        }
       }).catch((error) => {
         console.error("Error setting up drawpage:", error);
       });
@@ -35,8 +47,21 @@ export default function Canva({ roomId, socket }: {
         cleanup();
     
       }
+       drawpageRef.current = null;
     };
-  }, [socket, roomId, tool]);  
+  }, [socket, roomId]); 
+
+   const handleToolChange = (newTool: tools) => {
+    console.log("🔧 Changing tool to:", tools[newTool]);
+    settool(newTool);
+    
+    // ✅ UPDATE TOOL INSIDE EXISTING DRAWPAGE INSTANCE
+    if (drawpageRef.current && drawpageRef.current.setTool) {
+      drawpageRef.current.setTool(newTool);
+    }else{
+      console.warn("drawpage not available")
+    }
+  }; 
     
   return (
     <>
@@ -46,8 +71,7 @@ export default function Canva({ roomId, socket }: {
        <IconButton 
          icon={<PencilIcon size={34} />} 
          onClick={() => { 
-           
-           settool(tools.FREEHAND);
+           handleToolChange(tools.FREEHAND)
          }} 
           tool={tool}
           currentTool={tool}        // ✅ PASS CURRENT TOOL
@@ -56,16 +80,16 @@ export default function Canva({ roomId, socket }: {
        <IconButton 
          icon={<Circle size={34} />} 
          onClick={() => {  
-           settool(tools.CIRCLE); 
+           handleToolChange(tools.CIRCLE)
          }} 
          tool={tool} 
-         currentTool={tool}        // ✅ PASS CURRENT TOOL
+         currentTool={tool}        
           toolType={tools.CIRCLE}
        />
        <IconButton 
          icon={<RectangleVerticalIcon size={34}/> } 
          onClick={() => { 
-            settool(tools.RECT); 
+           handleToolChange(tools.RECT)
          }} 
          tool={tool} 
          currentTool={tool}
@@ -74,7 +98,7 @@ export default function Canva({ roomId, socket }: {
        <IconButton 
          icon={<EraserIcon size={34}/> } 
          onClick={() => { 
-            settool(tools.ERASER); 
+            handleToolChange(tools.ERASER)
          }} 
          tool={tool} 
          currentTool={tool}        // ✅ PASS CURRENT TOOL

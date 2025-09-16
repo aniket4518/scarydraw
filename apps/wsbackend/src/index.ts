@@ -76,7 +76,7 @@ function connection (token:string): string | null{
       return null;
     }
      
-    // You can return a string here if needed, for now returning userId as string
+     
     return (decoded as JwtPayload).email as string;
     
   } catch (error) {
@@ -198,7 +198,7 @@ wss.on('connection', (ws, request) => {
           user.ws.send(JSON.stringify({
              type: "chat",
                 roomId,
-                message: message  // Send original message, not newmessage from DB
+                message: newmessage  // Send original message, not newmessage from DB
               }))
           console.log("✅ Message sent successfully")
         } catch (error) {

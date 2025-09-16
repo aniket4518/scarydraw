@@ -215,23 +215,62 @@ app.get("/chats/:roomid",  async (req, res) => {
   })
   res.json(messages);
 })
+ 
 app.delete("/chats/:messageId", async (req, res) => {
-  const messageId = req.params.messageId
-  if (typeof messageId !== 'number') {
+  console.log("🗑️ DELETE endpoint reached")
+  console.log("📊 Request params:", req.params)
+  console.log("📊 Raw messageId:", req.params.messageId)
+  
+  const messageId = Number(req.params.messageId)
+  console.log("📊 Parsed messageId:", messageId)
+  console.log("📊 messageId type:", typeof messageId)
+  console.log("📊 Is NaN?", isNaN(messageId))
+  
+  if (isNaN(messageId) || messageId <= 0) {
+    console.log("❌ Invalid messageId:", messageId)
     res.status(400).json({ msg: "invalid message id" })
     return
   }
 
   try {
-    const deletedMessage = await prismaclient.message.delete({
-      where: {
-        id: messageId
-      }
+    // Check if message exists
+    console.log("🔍 Looking for message with ID:", messageId)
+    const existingMessage = await prismaclient.message.findUnique({
+      where: { id: messageId },
+      include: { chat: true }
     })
+    
+    if (!existingMessage) {
+      console.log(" Message not found in database:", messageId)
+      res.status(404).json({ msg: "message not found" })
+      return
+    }
+    
+    console.log("Found message:", {
+      id: existingMessage.id,
+      type: existingMessage.type,
+      chatId: existingMessage.chatId
+    })
+    
+    // Delete the message
+    const deletedMessage = await prismaclient.message.delete({
+      where: { id: messageId },
+      
+    })
+    
+    console.log("Message deleted successfully:", deletedMessage.id)
     res.json({ success: true, deleted: deletedMessage })
+    console.log("response sent sucessfully")
   } catch (error) {
-    console.error("Error deleting message:", error)
-    res.status(500).json({ msg: "failed to delete message" })
+    console.error(" Error deleting message:", error)
+    if (error instanceof Error) {
+      console.error("- Error name:", error.name)
+      console.error("- Error message:", error.message)
+    }
+    res.status(500).json({ 
+      msg: "failed to delete message",
+      error: error instanceof Error ? error.message : "Unknown error"
+    })
   }
 })
  
