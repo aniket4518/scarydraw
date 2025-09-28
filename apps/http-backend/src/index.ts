@@ -7,12 +7,15 @@ import  jwt from 'jsonwebtoken'
 import bcrypt from 'bcrypt'
 import { JWT_SCERET} from '@repo/common/environment'
 import cors from 'cors'
+import messageDeleteQueue, { getQueueStats } from './queue/messageQueue'
+import { v4 as uuidv4 } from 'uuid'
+
  
  const app =express()
  app.use(express.json())
 app.use(cors())
 const port =  process.env.PORT || 3001
-
+const pendingDeletes = new Map<number, string>()
 console.log('Backend starting...');
 console.log('NEXTAUTH_SECRET loaded:', !!process.env.NEXTAUTH_SECRET);
 
@@ -216,59 +219,61 @@ app.get("/chats/:roomid",  async (req, res) => {
   res.json(messages);
 })
  
-app.delete("/chats/:messageId", async (req, res) => {
-  console.log("🗑️ DELETE endpoint reached")
-  console.log("📊 Request params:", req.params)
-  console.log("📊 Raw messageId:", req.params.messageId)
-  
-  const messageId = Number(req.params.messageId)
-  console.log("📊 Parsed messageId:", messageId)
-  console.log("📊 messageId type:", typeof messageId)
-  console.log("📊 Is NaN?", isNaN(messageId))
-  
+app.delete("/chats/:messageId" ,async (req, res) => {
+     const messageId = Number(req.params.messageId)
   if (isNaN(messageId) || messageId <= 0) {
-    console.log("❌ Invalid messageId:", messageId)
-    res.status(400).json({ msg: "invalid message id" })
+     res.status(400).json({ msg: "invalid message id" })
     return
+  }
+  if (pendingDeletes.has (messageId)){
+    const existingRequestId = pendingDeletes.get(messageId)
+    console.log(`the messageId is alreay in the queue with ${messageId}`)
+    res.status(409).json({
+      msg:"message is already in the queue",
+     requestedId:existingRequestId
+  })
+  return
   }
 
   try {
-    // Check if message exists
+     const requestedId = uuidv4()
+     pendingDeletes.set(messageId, requestedId)
     console.log("🔍 Looking for message with ID:", messageId)
-    const existingMessage = await prismaclient.message.findUnique({
-      where: { id: messageId },
-      include: { chat: true }
+
+    console.log(`queueing delete for message id ${messageId} from backend`)
+    const job = await messageDeleteQueue.add('delete-message',{
+      messageId,
+      requestId:requestedId,
+      queuedAt: new Date().toISOString()
+    },{
+      jobId: `delete-${messageId}-${requestedId}`,
+    })
+    res.json({
+      sucess:true,
+      queued:true,
+      messageId,
+      requestedId,
+      message:"deleted the message"
+    })
+    job.finished().then(() => {
+      pendingDeletes.delete(messageId)
+      console.log(` [API] Removed message ${messageId} from pending deletes`)
+    }).catch((error) => {
+      pendingDeletes.delete(messageId)
+      console.error(` [API] Delete job failed for message ${messageId}:`, error.message)
     })
     
-    if (!existingMessage) {
-      console.log(" Message not found in database:", messageId)
-      res.status(404).json({ msg: "message not found" })
-      return
-    }
+  
+  
     
-    console.log("Found message:", {
-      id: existingMessage.id,
-      type: existingMessage.type,
-      chatId: existingMessage.chatId
-    })
-    
-    // Delete the message
-    const deletedMessage = await prismaclient.message.delete({
-      where: { id: messageId },
-      
-    })
-    
-    console.log("Message deleted successfully:", deletedMessage.id)
-    res.json({ success: true, deleted: deletedMessage })
-    console.log("response sent sucessfully")
   } catch (error) {
-    console.error(" Error deleting message:", error)
-    if (error instanceof Error) {
-      console.error("- Error name:", error.name)
-      console.error("- Error message:", error.message)
-    }
+    console.error(` [API] Queue error for message ${messageId}:`, error)
+    
+  
+    pendingDeletes.delete(messageId)
+    
     res.status(500).json({ 
-      msg: "failed to delete message",
+      msg: "failed to queue delete request",
       error: error instanceof Error ? error.message : "Unknown error"
     })
   }

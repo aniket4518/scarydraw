@@ -1,6 +1,7 @@
  import React from 'react';
 import { Skull, Ghost, Zap, Users, ArrowRight, Play, Star, Github, Twitter, PenTool, Share2, Eye, Moon, Flame } from 'lucide-react';
 import Link from 'next/link';
+import Header from '@/components/Header';
 
 function App() {
   return (
@@ -15,7 +16,7 @@ function App() {
           `,
           backgroundSize: '40px 40px'
         }}></div>
-        
+         
         {/* Floating Spooky Shapes */}
         <div className="absolute top-20 left-10 w-16 h-16 bg-gradient-to-r from-red-500 to-orange-500 rounded-lg rotate-45 animate-pulse opacity-60"></div>
         <div className="absolute top-40 right-20 w-12 h-12 bg-gradient-to-r from-purple-600 to-red-600 rounded-full animate-bounce opacity-50"></div>
@@ -25,7 +26,7 @@ function App() {
         <div className="absolute top-80 right-10 w-10 h-10 bg-gradient-to-r from-red-600 to-orange-600 rounded-lg animate-bounce opacity-60" style={{animationDelay: '2s'}}></div>
       </div>
 
-     
+     <Header/>
       
 
       {/* Hero Section */}

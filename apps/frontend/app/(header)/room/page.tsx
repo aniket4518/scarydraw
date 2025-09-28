@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Http_Backend } from '../../config';
-import Allrooms from '../../components/Allrooms';
+import { Http_Backend } from '@/config';
+import Allrooms from '@/components/Allrooms';
 export default function CreateRoomPage() {
   const { data: session, status } = useSession();
   const router = useRouter();

@@ -1,6 +1,6 @@
 import { Socket } from "dgram";
  
-import SocketCanvas from "../../../components/SocketCanvas";
+import SocketCanvas from "@/components/SocketCanvas";
 
 export default async function CanvasPage({ params }: { params: { roomid: string } }) {
   const roomId =   Number((await params).roomid);

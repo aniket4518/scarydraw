@@ -1,4 +1,4 @@
- import { Http_Backend } from "../../config"
+import { Http_Backend } from "../../config"
 import axios from 'axios'
 
 export enum tools {
@@ -8,7 +8,6 @@ export enum tools {
   ERASER
 }
 
- 
 type Message = {
   id?: number                     
   type: "RECT" | "CIRCLE" | "FREEHAND" | "TEXT" | "LINE"
@@ -24,9 +23,10 @@ type Message = {
   chatId?: number               
 }
 
-export default async function drawpage(canvas: HTMLCanvasElement, roomId: number, socket: WebSocket, initalTool: tools) {
+export default async function drawpage(canvas: HTMLCanvasElement, roomId: number, socket: WebSocket, initialTool: tools) {
   
-  let currentTool = initalTool
+  let currentTool = initialTool  
+  
   // Clean up previous listeners
   if (!(canvas as any)._listeners) {
     (canvas as any)._listeners = []
@@ -39,59 +39,38 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
   
   const ctx = canvas.getContext('2d')
   if (!ctx) {
-    return () => {}  
+    return { cleanup: () => {}, setTool: () => {} }  
   }
   
   canvas.width = canvas.offsetWidth;
   canvas.height = canvas.offsetHeight;
  
-  // ✅ UNIFIED MESSAGES ARRAY - SAME TYPE AS DATABASE
   const messages: Message[] = []
-  const deleted:Message[]=[]
-  const Maxlength= 20
+   
   
   console.log("📥 Loading existing messages from server...")
   
-  // ✅ LOAD ALL EXISTING MESSAGES FROM SERVER - NO TYPE CONVERSION NEEDED!
   const existingMessagesFromServer = await getMessagesFromServer(roomId)
 
   if (existingMessagesFromServer && Array.isArray(existingMessagesFromServer)) {
     existingMessagesFromServer.forEach((msg: Message) => {
       console.log("📦 Loading message from server:", msg.type, "ID:", msg.id)
-      messages.push(msg) // ✅ DIRECT PUSH - NO CONVERSION NEEDED!
+      messages.push(msg)
     })
   }
-  //message jo delete kiyeusko push kardena hain deleted main aur usme sai message from last ke 10 messageko delete karana hai with message id 
- async function addToDeleted (messagesToDelete:Message){
-     deleted.unshift(messagesToDelete)
-
-     //if  we reaches maxlength . Remove the oldest 
-     if(deleted.length>Maxlength){
-          const  oldest =deleted.pop()
-          if(oldest && oldest.id){
-            const messageId=oldest.id
-           await  deleteFromServer(messageId)
-          }
-     }
- } 
 
   const setTool = (newTool: tools) => {
     console.log("🔧 Tool changed from", tools[currentTool], "to", tools[newTool]);
     currentTool = newTool;
   };
 
- 
-  // ✅ WEBSOCKET MESSAGE HANDLER - ADDS TO UNIFIED ARRAY
   const handleMessage = (event: MessageEvent) => {
     try {
       const socketMessage = JSON.parse(event.data)
       if (socketMessage.type === "chat" && socketMessage.message) {
         console.log("🔥 Received new message via WebSocket:", socketMessage.message.type)
         
-        // ✅ ADD TO UNIFIED MESSAGES ARRAY - NO CONVERSION NEEDED!
         messages.push(socketMessage.message)
-        
-        // ✅ REDRAW ALL MESSAGES
         clearCanvas(canvas, ctx, messages)
         
         console.log("✅ Total messages now:", messages.length)
@@ -104,7 +83,6 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
   socket.removeEventListener('message', handleMessage)
   socket.addEventListener('message', handleMessage)
    
-  // ✅ INITIAL RENDER OF ALL MESSAGES
   clearCanvas(canvas, ctx, messages)
   console.log("🎨 Canvas rendered with", messages.length, "messages")
   
@@ -113,7 +91,8 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
   let starty = 0
   let pencilPoints: [number, number][] = []  
   
-  const handleMouseDown = (e: MouseEvent) => {
+  // ✅ SIMPLIFIED: No queue needed - direct delete with Redis backend
+  const handleMouseDown = async (e: MouseEvent) => {
     clicked = true
     const rect = canvas.getBoundingClientRect()  
     startx = e.clientX - rect.left
@@ -122,23 +101,32 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
     if (currentTool === tools.FREEHAND) {
       pencilPoints = [[startx, starty]]
     } else if (currentTool === tools.ERASER) {
-      console.log("🗑️ Eraser tool - checking for messages to delete...")
+      console.log("🗑️ Eraser tool - deleting messages...")
       
-      // ✅ ERASE FROM UNIFIED MESSAGES ARRAY
       let deletedCount = 0
+      
+      // ✅ SIMPLE: Delete messages directly - Redis handles everything
       for (let i = messages.length - 1; i >= 0; i--) {
         if (isInsideMessage(startx, starty, messages[i])) {
-          console.log("🗑️ Deleting message:", messages[i].type, "ID:", messages[i].id)
-          const messageToDelete=messages[i]
-          messages.splice(i, 1)
-           deletedCount++
-          addToDeleted(messageToDelete)
+          console.log("🎯 Found message to delete:", messages[i].type, "ID:", messages[i].id)
+          
+          const messageToDelete = messages[i]
+          messages.splice(i, 1) // ✅ Remove from UI immediately
+          deletedCount++
+          
+          // ✅ FIRE AND FORGET: Redis queue handles the actual deletion
+          if (messageToDelete.id) {
+            deleteFromServer(messageToDelete.id).catch(error => {
+              console.error("❌ Error queuing delete:", error)
+              // Could add message back to UI here if needed
+            })
+          }
         }
       }
       
       if (deletedCount > 0) {
-        console.log("🗑️ Deleted", deletedCount, "messages")
-        clearCanvas(canvas, ctx, messages)
+        console.log("🗑️ Deleted", deletedCount, "messages from UI")
+        clearCanvas(canvas, ctx, messages) // ✅ Update UI immediately
       }
     } else {
       pencilPoints = []  
@@ -155,8 +143,7 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
     
     let newMessage: Message | null = null
 
-    // ✅ SIMPLIFIED LOGIC - CREATE MESSAGE DIRECTLY
-    if (currentTool=== tools.RECT) {
+    if (currentTool === tools.RECT) {
       const minX = Math.min(startx, endx)
       const minY = Math.min(starty, endy)
       const maxX = Math.max(startx, endx)
@@ -197,15 +184,11 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
     if (newMessage) {
       console.log("🎨 Creating new message:", newMessage.type)
       
-      // ✅ ADD TO UNIFIED MESSAGES ARRAY
       messages.push(newMessage)
-      
-      // ✅ REDRAW ALL MESSAGES
       clearCanvas(canvas, ctx, messages)
       
       console.log("✅ Total messages now:", messages.length)
       
-      // ✅ SEND TO WEBSOCKET (WHICH SAVES TO DB)
       socket.send(JSON.stringify({
         type: "chat",
         message: newMessage,
@@ -226,7 +209,6 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
       const currentx = (e.clientX - rect.left)  
       const currenty = (e.clientY - rect.top)  
       
-      // ✅ REDRAW ALL EXISTING MESSAGES
       clearCanvas(canvas, ctx, messages)
 
       if (currentTool === tools.RECT) {
@@ -265,12 +247,10 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
     { type: "mousemove", handler: handleMouseMove }
   )
 
-  // ✅ UNIFIED CANVAS CLEARING FUNCTION - WORKS WITH MESSAGE TYPE
   function clearCanvas(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, allMessages: Message[]) {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
     
     allMessages.forEach((message) => {
-      // ✅ SIMPLIFIED - NO MORE IF/ELSE CONVERSION NEEDED!
       if (message.type === "RECT" && message.width && message.height) {
         ctx.strokeRect(message.startX, message.startY, message.width, message.height)
       } else if (message.type === "CIRCLE" && message.radius) {
@@ -288,7 +268,7 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
     })
   }
 
-   return {
+  return {
     cleanup: () => {
       console.log("🧹 Cleaning up drawpage")
       socket.removeEventListener('message', handleMessage)
@@ -304,7 +284,6 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
   }
 }
 
-// ✅ RENAMED FUNCTION TO REFLECT THAT IT GETS MESSAGES
 async function getMessagesFromServer(roomId: number): Promise<Message[]> {
   try {
     console.log("🌐 Fetching messages from server for room:", roomId)
@@ -316,20 +295,43 @@ async function getMessagesFromServer(roomId: number): Promise<Message[]> {
     return []
   }
 }
-async function deleteFromServer(messageId:number){
-try{
-  console.log("this is from delete from server ",messageId)
-  const deleted = await axios.delete(`${Http_Backend}/chats/${messageId}`) 
-  if(deleted){
-    console.log("deleted sucessfully")
-  }
-}
- catch(error) {
-    console.error("Error deleting message from server:", error)
-    if (axios.isAxiosError(error)) {
-      console.error("- Status:", error.response?.status)
-      console.error("- Message:", error.message)
+
+// ✅ SIMPLIFIED: Just queue the delete request - Redis handles everything
+async function deleteFromServer(messageId: number): Promise<boolean> {
+  try {
+    console.log("🗑️ [Frontend] Queuing delete for message:", messageId)
+    
+    const response = await axios.delete(`${Http_Backend}/chats/${messageId}`, {
+      timeout: 2000 // Quick timeout since we're just queuing
+    })
+    
+    if (response.status === 200) {
+      console.log("✅ [Frontend] Delete queued successfully:", response.data)
+      return true
     }
+    
+    return false
+    
+  } catch (error) {
+    console.error("❌ [Frontend] Delete queue error:", error)
+    
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status
+      
+      if (status === 404) {
+        console.log("📝 Message not found (already deleted)")
+        return true // Consider successful if already deleted
+      }
+      
+      if (status === 409) {
+        console.log("⏳ Delete already queued, ignoring...")
+        return true // Consider successful if already queued
+      }
+      
+      console.error("- Status:", status)
+      console.error("- Data:", error.response?.data)
+    }
+    
     return false
   }
 }
