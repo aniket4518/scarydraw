@@ -302,7 +302,7 @@ async function deleteFromServer(messageId: number): Promise<boolean> {
     console.log("🗑️ [Frontend] Queuing delete for message:", messageId)
     
     const response = await axios.delete(`${Http_Backend}/chats/${messageId}`, {
-      timeout: 2000 // Quick timeout since we're just queuing
+      timeout: 5000 // Quick timeout since we're just queuing
     })
     
     if (response.status === 200) {

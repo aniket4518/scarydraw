@@ -57,4 +57,5 @@ enum ShapeType {
   LINE
   FREEHAND
   TEXT
+  SLECTION
 }
