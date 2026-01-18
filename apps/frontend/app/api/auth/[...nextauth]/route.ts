@@ -8,14 +8,14 @@ const githubsecret =process.env.GitHub_ClientSecret!
  
 const  Google_ClientId=process.env.Google_ClientId! 
 
-const oogle_ClientSecret=process.env.Google_ClientSecret!
+const google_ClientSecret=process.env.Google_ClientSecret!
  
 const handler = NextAuth({
      
   providers: [
     Google({
       clientId: Google_ClientId,
-      clientSecret: oogle_ClientSecret
+      clientSecret: google_ClientSecret
     }),
     Github({
       clientId: githubclientId,

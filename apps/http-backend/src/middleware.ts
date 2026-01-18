@@ -20,7 +20,7 @@ import {JWT_SCERET} from "@repo/common/environment"
 //   }
 //  }
   export function NextAuthmiddleware(req:Request,res:Response,next:NextFunction){
-    const  NEXTAUTH_SECRET="hiiamaniket"
+    const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET;
     console.log('=== NextAuth Middleware Called ===');
     console.log('NEXTAUTH_SECRET exists:', !!NEXTAUTH_SECRET);
     

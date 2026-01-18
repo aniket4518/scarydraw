@@ -1,6 +1,6 @@
 import {  WebSocketServer,WebSocket} from 'ws';
 import Jwt, { JwtPayload } from "jsonwebtoken"
-import { JWT_SCERET} from "@repo/common/environment";
+ 
  import {prismaclient} from "@repo/db/client";
   
 
@@ -54,7 +54,8 @@ interface User {
 
  
 const users :User[]=[]
-const NEXTAUTH_SECRET=process.env.NEXTAUTH_SECRET ||"hiiamaniket"
+const NEXTAUTH_SECRET=process.env.NEXTAUTH_SECRET! || "ihaveasecretpasssword"
+console.log("this is secret",NEXTAUTH_SECRET)
 function connection (token:string): string | null{
     try {
        
@@ -118,15 +119,15 @@ wss.on('connection', (ws, request) => {
     if (parssedData.type === "join_room") {
         const user = users.find(x => x.ws === ws)
         if (user) {
-          console.log(`✅ User ${user.email} joining room ${parssedData.roomId}`)
+          console.log(` User ${user.email} joining room ${parssedData.roomId}`)
           // Convert to string for consistent comparison
           const roomIdStr = parssedData.roomId.toString()
           if (!user.rooms.includes(roomIdStr)) {
             user.rooms.push(roomIdStr)
           }
-          console.log(`✅ User ${user.email} is now in rooms:`, user.rooms)
+          console.log(` User ${user.email} is now in rooms:`, user.rooms)
         } else {
-          console.log("❌ User not found when trying to join room")
+          console.log(" User not found when trying to join room")
         }
     }
     
@@ -200,12 +201,12 @@ wss.on('connection', (ws, request) => {
                 roomId,
                 message: newmessage  // Send original message, not newmessage from DB
               }))
-          console.log("✅ Message sent successfully")
+          console.log(" Message sent successfully")
         } catch (error) {
-          console.error("❌ Error sending message to user:", error)
+          console.error(" Error sending message to user:", error)
         }
       } else {
-        console.log(`❌ User ${user.email} not in room ${roomId}. User rooms:`, user.rooms)
+        console.log(` User ${user.email} not in room ${roomId}. User rooms:`, user.rooms)
       }
     })
     }
