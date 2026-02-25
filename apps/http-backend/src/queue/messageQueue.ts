@@ -34,15 +34,13 @@ messageDeleteQueue.client.on('connect', () => {
 messageDeleteQueue.client.on('error', (err) => {
     console.error("❌ Redis connection failed:", err)
 })
-
-// ✅ FIXED: Queue process to delete messages
+ 
 messageDeleteQueue.process('delete-message', async (job) => {
     const { messageId, requestId } = job.data
     console.log(`🔄 [Queue] Processing delete job for message ${messageId} (request: ${requestId})`)
 
-    try {
-        // ✅ FIXED: Transaction with proper error handling
-        const result = await prismaclient.$transaction(async (prisma) => {
+    try { 
+        const result = await prismaclient.$transaction(async (prisma: typeof prismaclient) => {
             const existingMessage = await prisma.message.findUnique({
                 where: {
                     id: messageId
@@ -57,9 +55,8 @@ messageDeleteQueue.process('delete-message', async (job) => {
                 throw new Error("MESSAGE_NOT_FOUND")
             }
             
-            console.log(`✅ [Queue] Found message ${messageId}, deleting...`)
-            
-            // ✅ CRITICAL FIX: Use 'prisma' parameter, NOT 'prismaclient'
+            console.log(` [Queue] Found message ${messageId}, deleting...`)
+             
             const deletedMessage = await prisma.message.delete({
                 where: {
                     id: messageId
@@ -71,9 +68,8 @@ messageDeleteQueue.process('delete-message', async (job) => {
         
         console.log(`✅ [Queue] Message ${messageId} deleted successfully`)
         
-        // ✅ FIXED: Return the result (this was missing!)
         return {
-            success: true, // ✅ FIXED: Typo 'sucess' -> 'success'
+            success: true,  
             deleted: result,
             messageId,
             requestId,
@@ -82,28 +78,27 @@ messageDeleteQueue.process('delete-message', async (job) => {
         
     } catch (error) {
         console.error(`❌ [Queue] Failed to delete message ${messageId}:`, error)
-        
-        // ✅ CRITICAL FIX: Re-throw error for retry mechanism
+  
         if (error instanceof Error && error.message === "MESSAGE_NOT_FOUND") {
             const notFoundError = new Error("MESSAGE_NOT_FOUND")
             ;(notFoundError as any).isRetryable = false
             throw notFoundError
         }
         
-        throw error // Re-throw for automatic retry
+        throw error 
     }
 })
 
-// ✅ ADD: Event handlers for better monitoring
+ 
 messageDeleteQueue.on('completed', (job, result) => {
-    console.log(`✅ [Queue] Delete job completed for message ${result.messageId}`)
+    console.log(` [Queue] Delete job completed for message ${result.messageId}`)
 })
 
 messageDeleteQueue.on('failed', (job, err) => {
-    console.error(`❌ [Queue] Delete job failed for message ${job.data.messageId}:`, err.message)
+    console.error(`[Queue] Delete job failed for message ${job.data.messageId}:`, err.message)
     
     if (job.attemptsMade >= (job.opts.attempts || 1)) {
-        console.error(`🚫 [Queue] Message ${job.data.messageId} failed permanently after ${job.attemptsMade} attempts`)
+        console.error(` [Queue] Message ${job.data.messageId} failed permanently after ${job.attemptsMade} attempts`)
     }
 })
 
@@ -125,7 +120,7 @@ export async function getQueueStats() {
             failed: failed.length,
         }
     } catch (error) {
-        console.error('❌ Queue stats error:', error)
+        console.error(' Queue stats error:', error)
         return {
             error: 'Failed to get stats',
             waiting: 0,
