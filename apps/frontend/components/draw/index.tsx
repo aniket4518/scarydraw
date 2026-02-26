@@ -9,58 +9,58 @@ export enum tools {
 }
 
 type Message = {
-  id?: number                     
+  id?: number
   type: "RECT" | "CIRCLE" | "FREEHAND" | "TEXT" | "LINE"
   startX: number
   startY: number
-  width?: number                  
-  height?: number               
-  radius?: number                 
-  points?: [number, number][]    
-  content?: string              
-  color?: string                 
-  createdAt?: Date               
-  chatId?: number               
+  width?: number
+  height?: number
+  radius?: number
+  points?: [number, number][]
+  content?: string
+  color?: string
+  createdAt?: Date
+  chatId?: number
 }
 
 export default async function drawpage(canvas: HTMLCanvasElement, roomId: number, socket: WebSocket, initialTool: tools) {
-  
-  let currentTool = initialTool  
-  
+
+  let currentTool = initialTool
+
   // Clean up previous listeners
   if (!(canvas as any)._listeners) {
     (canvas as any)._listeners = []
   }
-  
-  ;(canvas as any)._listeners.forEach((listenerInfo: any) => {
+
+  ; (canvas as any)._listeners.forEach((listenerInfo: any) => {
     canvas.removeEventListener(listenerInfo.type, listenerInfo.handler)
   })
-  ;(canvas as any)._listeners = []
-  
+    ; (canvas as any)._listeners = []
+
   const ctx = canvas.getContext('2d')
   if (!ctx) {
-    return { cleanup: () => {}, setTool: () => {} }  
+    return { cleanup: () => { }, setTool: () => { } }
   }
-  
+
   canvas.width = canvas.offsetWidth;
   canvas.height = canvas.offsetHeight;
- 
+
   const messages: Message[] = []
-   
-  
-  console.log("📥 Loading existing messages from server...")
-  
+
+
+  console.log("Loading existing messages from server...")
+
   const existingMessagesFromServer = await getMessagesFromServer(roomId)
 
   if (existingMessagesFromServer && Array.isArray(existingMessagesFromServer)) {
     existingMessagesFromServer.forEach((msg: Message) => {
-      console.log("📦 Loading message from server:", msg.type, "ID:", msg.id)
+      console.log("Loading message from server:", msg.type, "ID:", msg.id)
       messages.push(msg)
     })
   }
 
   const setTool = (newTool: tools) => {
-    console.log("🔧 Tool changed from", tools[currentTool], "to", tools[newTool]);
+    console.log("Tool changed from", tools[currentTool], "to", tools[newTool]);
     currentTool = newTool;
   };
 
@@ -68,68 +68,68 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
     try {
       const socketMessage = JSON.parse(event.data)
       if (socketMessage.type === "chat" && socketMessage.message) {
-        console.log("🔥 Received new message via WebSocket:", socketMessage.message.type)
-        
+        console.log("Received new message via WebSocket:", socketMessage.message.type)
+
         messages.push(socketMessage.message)
         clearCanvas(canvas, ctx, messages)
-        
-        console.log("✅ Total messages now:", messages.length)
+
+        console.log("Total messages now:", messages.length)
       }
     } catch (error) {
-      console.error("❌ Error parsing WebSocket message:", error)
+      console.error("Error parsing WebSocket message:", error)
     }
   }
 
   socket.removeEventListener('message', handleMessage)
   socket.addEventListener('message', handleMessage)
-   
+
   clearCanvas(canvas, ctx, messages)
-  console.log("🎨 Canvas rendered with", messages.length, "messages")
-  
+  console.log("Canvas rendered with", messages.length, "messages")
+
   let clicked = false
   let startx = 0
   let starty = 0
-  let pencilPoints: [number, number][] = []  
-  
-  // ✅ SIMPLIFIED: No queue needed - direct delete with Redis backend
+  let pencilPoints: [number, number][] = []
+
+  // SIMPLIFIED: No queue needed - direct delete with Redis backend
   const handleMouseDown = async (e: MouseEvent) => {
     clicked = true
-    const rect = canvas.getBoundingClientRect()  
+    const rect = canvas.getBoundingClientRect()
     startx = e.clientX - rect.left
     starty = e.clientY - rect.top
-     
+
     if (currentTool === tools.FREEHAND) {
       pencilPoints = [[startx, starty]]
     } else if (currentTool === tools.ERASER) {
-      console.log("🗑️ Eraser tool - deleting messages...")
-      
+      console.log("Eraser tool - deleting messages...")
+
       let deletedCount = 0
-      
-      // ✅ SIMPLE: Delete messages directly - Redis handles everything
+
+      // SIMPLE: Delete messages directly - Redis handles everything
       for (let i = messages.length - 1; i >= 0; i--) {
         if (isInsideMessage(startx, starty, messages[i])) {
-          console.log("🎯 Found message to delete:", messages[i].type, "ID:", messages[i].id)
-          
+          console.log("Found message to delete:", messages[i].type, "ID:", messages[i].id)
+
           const messageToDelete = messages[i]
-          messages.splice(i, 1) // ✅ Remove from UI immediately
+          messages.splice(i, 1) // Remove from UI immediately
           deletedCount++
-          
-          // ✅ FIRE AND FORGET: Redis queue handles the actual deletion
+
+          // FIRE AND FORGET: Redis queue handles the actual deletion
           if (messageToDelete.id) {
             deleteFromServer(messageToDelete.id).catch(error => {
-              console.error("❌ Error queuing delete:", error)
+              console.error("Error queuing delete:", error)
               // Could add message back to UI here if needed
             })
           }
         }
       }
-      
+
       if (deletedCount > 0) {
-        console.log("🗑️ Deleted", deletedCount, "messages from UI")
-        clearCanvas(canvas, ctx, messages) // ✅ Update UI immediately
+        console.log("Deleted", deletedCount, "messages from UI")
+        clearCanvas(canvas, ctx, messages) // Update UI immediately
       }
     } else {
-      pencilPoints = []  
+      pencilPoints = []
     }
   }
 
@@ -137,10 +137,10 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
     if (!clicked) return
     clicked = false
 
-    const rect = canvas.getBoundingClientRect()  
+    const rect = canvas.getBoundingClientRect()
     const endx = (e.clientX - rect.left)
     const endy = (e.clientY - rect.top)
-    
+
     let newMessage: Message | null = null
 
     if (currentTool === tools.RECT) {
@@ -148,7 +148,7 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
       const minY = Math.min(starty, endy)
       const maxX = Math.max(startx, endx)
       const maxY = Math.max(starty, endy)
-      
+
       newMessage = {
         type: "RECT",
         startX: minX,
@@ -167,37 +167,37 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
       }
     }
     else if (currentTool === tools.FREEHAND) {
-      if (pencilPoints.length === 0 || 
-          pencilPoints[pencilPoints.length - 1][0] !== endx || 
-          pencilPoints[pencilPoints.length - 1][1] !== endy) {
+      if (pencilPoints.length === 0 ||
+        pencilPoints[pencilPoints.length - 1][0] !== endx ||
+        pencilPoints[pencilPoints.length - 1][1] !== endy) {
         pencilPoints.push([endx, endy])
       }
-      
+
       newMessage = {
         type: "FREEHAND",
         startX: startx,
         startY: starty,
-        points: [...pencilPoints] 
+        points: [...pencilPoints]
       }
     }
 
     if (newMessage) {
-      console.log("🎨 Creating new message:", newMessage.type)
-      
+      console.log("Creating new message:", newMessage.type)
+
       messages.push(newMessage)
       clearCanvas(canvas, ctx, messages)
-      
-      console.log("✅ Total messages now:", messages.length)
-      
+
+      console.log("Total messages now:", messages.length)
+
       socket.send(JSON.stringify({
         type: "chat",
         message: newMessage,
         roomId
       }))
-      
-      console.log("📤 Message sent to server for DB storage")
+
+      console.log("Message sent to server for DB storage")
     }
- 
+
     if (currentTool === tools.FREEHAND) {
       pencilPoints = []
     }
@@ -205,10 +205,10 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
 
   const handleMouseMove = (e: MouseEvent) => {
     if (clicked) {
-      const rect = canvas.getBoundingClientRect()  
-      const currentx = (e.clientX - rect.left)  
-      const currenty = (e.clientY - rect.top)  
-      
+      const rect = canvas.getBoundingClientRect()
+      const currentx = (e.clientX - rect.left)
+      const currenty = (e.clientY - rect.top)
+
       clearCanvas(canvas, ctx, messages)
 
       if (currentTool === tools.RECT) {
@@ -216,7 +216,7 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
         const minY = Math.min(starty, currenty)
         const maxX = Math.max(startx, currentx)
         const maxY = Math.max(starty, currenty)
-        
+
         ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
       } else if (currentTool === tools.CIRCLE) {
         const radius = Math.sqrt(Math.pow(currentx - startx, 2) + Math.pow(currenty - starty, 2));
@@ -240,16 +240,16 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
   canvas.addEventListener("mousedown", handleMouseDown)
   canvas.addEventListener("mouseup", handleMouseUp)
   canvas.addEventListener("mousemove", handleMouseMove)
-  
-  ;(canvas as any)._listeners.push(
-    { type: "mousedown", handler: handleMouseDown },
-    { type: "mouseup", handler: handleMouseUp },
-    { type: "mousemove", handler: handleMouseMove }
-  )
+
+    ; (canvas as any)._listeners.push(
+      { type: "mousedown", handler: handleMouseDown },
+      { type: "mouseup", handler: handleMouseUp },
+      { type: "mousemove", handler: handleMouseMove }
+    )
 
   function clearCanvas(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, allMessages: Message[]) {
     ctx.clearRect(0, 0, canvas.width, canvas.height)
-    
+
     allMessages.forEach((message) => {
       if (message.type === "RECT" && message.width && message.height) {
         ctx.strokeRect(message.startX, message.startY, message.width, message.height)
@@ -270,14 +270,14 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
 
   return {
     cleanup: () => {
-      console.log("🧹 Cleaning up drawpage")
+      console.log("Cleaning up drawpage")
       socket.removeEventListener('message', handleMessage)
-      
+
       if ((canvas as any)._listeners) {
         (canvas as any)._listeners.forEach((listenerInfo: any) => {
           canvas.removeEventListener(listenerInfo.type, listenerInfo.handler)
         })
-        ;(canvas as any)._listeners = []
+          ; (canvas as any)._listeners = []
       }
     },
     setTool: setTool
@@ -286,52 +286,52 @@ export default async function drawpage(canvas: HTMLCanvasElement, roomId: number
 
 async function getMessagesFromServer(roomId: number): Promise<Message[]> {
   try {
-    console.log("🌐 Fetching messages from server for room:", roomId)
+    console.log("Fetching messages from server for room:", roomId)
     const response = await axios.get(`${Http_Backend}/chats/${roomId}`)
-    console.log("✅ Server response:", response.data.length, "messages")
+    console.log("Server response:", response.data.length, "messages")
     return response.data
   } catch (error) {
-    console.error("❌ Error fetching messages from server:", error)
+    console.error("Error fetching messages from server:", error)
     return []
   }
 }
 
-// ✅ SIMPLIFIED: Just queue the delete request - Redis handles everything
+// SIMPLIFIED: Just queue the delete request - Redis handles everything
 async function deleteFromServer(messageId: number): Promise<boolean> {
   try {
-    console.log("🗑️ [Frontend] Queuing delete for message:", messageId)
-    
+    console.log("[Frontend] Queuing delete for message:", messageId)
+
     const response = await axios.delete(`${Http_Backend}/chats/${messageId}`, {
       timeout: 2000 // Quick timeout since we're just queuing
     })
-    
+
     if (response.status === 200) {
-      console.log("✅ [Frontend] Delete queued successfully:", response.data)
+      console.log("[Frontend] Delete queued successfully:", response.data)
       return true
     }
-    
+
     return false
-    
+
   } catch (error) {
-    console.error("❌ [Frontend] Delete queue error:", error)
-    
+    console.error("[Frontend] Delete queue error:", error)
+
     if (axios.isAxiosError(error)) {
       const status = error.response?.status
-      
+
       if (status === 404) {
-        console.log("📝 Message not found (already deleted)")
+        console.log("Message not found (already deleted)")
         return true // Consider successful if already deleted
       }
-      
+
       if (status === 409) {
-        console.log("⏳ Delete already queued, ignoring...")
+        console.log("Delete already queued, ignoring...")
         return true // Consider successful if already queued
       }
-      
+
       console.error("- Status:", status)
       console.error("- Data:", error.response?.data)
     }
-    
+
     return false
   }
 }

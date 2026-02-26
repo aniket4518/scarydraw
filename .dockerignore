@@ -1,0 +1,17 @@
+node_modules
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+.git
+.gitignore
+
+# Local env files — injected at runtime via docker-compose
+**/.env
+**/.env.local
+**/.env.development
+**/.env.production
+
+# Dev tooling
+.vscode
+*.log

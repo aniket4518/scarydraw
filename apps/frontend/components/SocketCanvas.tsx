@@ -1,4 +1,5 @@
 "use client"
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Canva from "./Canva";
 import { ws_backend } from "@/config";
@@ -6,6 +7,7 @@ import getWsToken from "./Gettoken";
 import axios from "axios";
 
 export default function SocketCanvas({ roomId }: { roomId: number }) {
+  const router = useRouter();
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -14,7 +16,7 @@ export default function SocketCanvas({ roomId }: { roomId: number }) {
 
     const setupSocket = async () => {
       try {
-         
+
         const token = await getWsToken();
         console.log("token from socket canva", token);
 
