@@ -1,0 +1,9 @@
+# HTTP Backend .gitignore
+node_modules/
+dist/
+build/
+.env
+*.log
+*.local
+*.env.*
+coverage/
