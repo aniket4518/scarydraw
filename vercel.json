@@ -1,0 +1,6 @@
+{
+  "buildCommand": "pnpm --filter @repo/db exec prisma generate && pnpm turbo build --filter=frontend",
+  "outputDirectory": "apps/frontend/.next",
+  "installCommand": "pnpm install",
+  "framework": "nextjs"
+}
