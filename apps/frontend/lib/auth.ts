@@ -12,26 +12,6 @@ const Google_ClientId = process.env.Google_ClientId!;
 const google_ClientSecret = process.env.Google_ClientSecret!;
 
 export const authOptions: NextAuthOptions = {
-  cookies: {
-    state: {
-      name: "next-auth.state",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: false,
-      },
-    },
-    pkceCodeVerifier: {
-      name: "next-auth.pkce.code_verifier",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: false,
-      },
-    },
-  },
   providers: [
     Google({
       clientId: Google_ClientId,
