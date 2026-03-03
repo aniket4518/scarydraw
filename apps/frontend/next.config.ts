@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  transpilePackages: ["@repo/zod", "@repo/db", "@repo/common"],
 };
 
 export default nextConfig;

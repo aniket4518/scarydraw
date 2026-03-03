@@ -1,3 +1,10 @@
-import { PrismaClient } from './generated/client/index.js'
+import { PrismaClient } from "./generated/client/index.js";
+import * as dotenv from "dotenv";
+dotenv.config();
 
-export const prismaclient = new PrismaClient()
+// Prevent multiple PrismaClient instances during Next.js hot-reload
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+
+export const prismaclient: PrismaClient =
+  globalForPrisma.prisma ??
+  new PrismaClient({ datasourceUrl: process.env.DATABASE_URL });
